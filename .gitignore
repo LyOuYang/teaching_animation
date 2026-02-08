@@ -1,0 +1,17 @@
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Editor Directories
+.vscode/
+.idea/
+
+# Dependencies
+node_modules/
+
+# Environment Variables
+.env
+
+# Agent Artifacts
+.agent/

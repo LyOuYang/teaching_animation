@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AP-CSP: Algorithms & Programming</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.292.0",
+            "framer-motion": "https://esm.sh/framer-motion@10.16.4"
+        }
+    }
+    </script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.4/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono&display=swap');
+
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: #f1f5f9;
+        }
+
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes scanline {
+            0% {
+                transform: translateY(-100%);
+            }
+
+            100% {
+                transform: translateY(100%);
+            }
+        }
+
+        .laser-beam {
+            box-shadow: 0 0 10px #ef4444, 0 0 20px #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import {
+            ChevronRight,
+            ChevronLeft,
+            Trash2,
+            Plus,
+            ArrowRight,
+            RefreshCw,
+            AlertTriangle,
+            Database,
+            LayoutGrid,
+            Layers,
+            Bot,
+            Zap,
+            Unlock,
+            Lock,
+            Play,
+            RotateCcw,
+            CheckCircle2,
+            XCircle
+        } from 'lucide-react';
+
+        // --- Scene 1: The Robot Chef (Algorithms) ---
+        const RobotChef = () => {
+            const [sequence, setSequence] = useState([]);
+            const [result, setResult] = useState(null); // 'success', 'messy', 'missing'
+            const [isRunning, setIsRunning] = useState(false);
+
+            const steps = [
+                { id: 'bread_bottom', label: '放下面包 (Bottom Bread)', icon: '🍞' },
+                { id: 'ham', label: '放火腿 (Ham)', icon: '🍖' },
+                { id: 'cheese', label: '放芝士 (Cheese)', icon: '🧀' },
+                { id: 'lettuce', label: '放生菜 (Lettuce)', icon: '🥬' },
+                { id: 'bread_top', label: '盖上面包 (Top Bread)', icon: '🍞' },
+            ];
+
+            const addToSequence = (step) => {
+                if (result) setResult(null);
+                setSequence([...sequence, step]);
+            };
+
+            const runAlgorithm = () => {
+                setIsRunning(true);
+                setTimeout(() => {
+                    setIsRunning(false);
+                    validate();
+                }, 1500);
+            };
+
+            const validate = () => {
+                if (sequence.length === 0) {
+                    setResult('missing'); // 什么都没做
+                    return;
+                }
+
+                const ids = sequence.map(s => s.id);
+                // 完美的顺序：面包底 -> (任意中间层) -> 面包顶
+                // 错误的顺序：先顶后底，或者没有底，或者配料在面包外面
+
+                const hasBottom = ids[0] === 'bread_bottom';
+                const hasTop = ids[ids.length - 1] === 'bread_top';
+                const hasIngredients = ids.length > 2;
+
+                if (hasBottom && hasTop && hasIngredients) {
+                    setResult('success');
+                } else {
+                    setResult('messy');
+                }
+            };
+
+            const reset = () => {
+                setSequence([]);
+                setResult(null);
+            };
+
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-5xl">
+                    {/* Control Panel: Instruction Set */}
+                    <div className="glass-panel p-6 rounded-3xl space-y-6">
+                        <h3 className="text-xl font-bold flex items-center gap-2 text-cyan-400">
+                            <Bot size={24} /> 算法指令集 (Instruction Set)
+                        </h3>
+                        <p className="text-slate-400 text-sm">点击指令，将它们加入机器人的执行队列。</p>
+
+                        <div className="grid grid-cols-1 gap-3">
+                            {steps.map(step => (
+                                <button
+                                    key={step.id}
+                                    onClick={() => addToSequence(step)}
+                                    className="flex items-center gap-4 p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition-all active:scale-95"
+                                >
+                                    <span className="text-2xl">{step.icon}</span>
+                                    <span className="font-mono text-sm">{step.label}</span>
+                                    <Plus size={16} className="ml-auto text-slate-500" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Simulation Area */}
+                    <div className="space-y-6">
+                        {/* Queue Display */}
+                        <div className="glass-panel p-6 rounded-3xl min-h-[160px] flex flex-col">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">执行队列 (Program Queue)</h3>
+                                <button onClick={reset} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
+                                    <Trash2 size={12} /> 清除
+                                </button>
+                            </div>
+
+                            <div className="flex-1 flex items-center gap-2 overflow-x-auto pb-2">
+                                {sequence.length === 0 && <span className="text-slate-600 italic text-sm">等待输入指令...</span>}
+                                {sequence.map((step, i) => (
+                                    <div key={i} className="flex-shrink-0 flex flex-col items-center bg-slate-900 border border-slate-600 px-3 py-2 rounded-lg relative group">
+                                        <div className="text-xs text-slate-500 absolute -top-2 bg-slate-800 px-1 rounded-full">{i}</div>
+                                        <span className="text-xl">{step.icon}</span>
+                                        <ArrowRight size={12} className="absolute -right-3 top-1/2 -translate-y-1/2 text-slate-700 z-10" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Result View */}
+                        <div className="glass-panel p-8 rounded-3xl flex flex-col items-center justify-center min-h-[300px] relative overflow-hidden">
+
+                            {isRunning ? (
+                                <div className="text-center space-y-4 animate-pulse">
+                                    <Bot size={64} className="mx-auto text-cyan-400" />
+                                    <div className="text-cyan-400 font-mono">EXECUTING_ALGORITHM...</div>
+                                </div>
+                            ) : result ? (
+                                <div className="text-center space-y-4 animate-in zoom-in duration-300">
+                                    <div className="text-6xl mb-4">
+                                        {result === 'success' ? '🥪' : '💥'}
+                                    </div>
+                                    <h4 className={`text-2xl font-bold ${result === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                                        {result === 'success' ? '算法完美执行！' : '程序崩溃 (Bug Found)'}
+                                    </h4>
+                                    <p className="text-slate-400 max-w-xs mx-auto">
+                                        {result === 'success'
+                                            ? '指令顺序逻辑正确，产出了预期的结果。'
+                                            : result === 'messy'
+                                                ? '指令顺序混乱！火腿掉在了桌子上，或者没有面包底托住。'
+                                                : '没有任何指令，机器人不知道做什么。'}
+                                    </p>
+                                    <button onClick={reset} className="mt-4 px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-full text-sm">
+                                        重置 (Debug)
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="text-center opacity-30">
+                                    <Bot size={64} className="mx-auto mb-4" />
+                                    <p>准备就绪 (Idle)</p>
+                                </div>
+                            )}
+
+                            {!isRunning && !result && (
+                                <button
+                                    onClick={runAlgorithm}
+                                    disabled={sequence.length === 0}
+                                    className="absolute bottom-8 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-lg shadow-cyan-900/40 flex items-center gap-2 transition-all active:scale-95"
+                                >
+                                    <Play size={20} fill="currentColor" /> 运行程序 (Run)
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Scene 2: The Laser Heist (Boolean Logic) ---
+        const LaserHeist = () => {
+            // State for switches
+            const [swA, setSwA] = useState(false); // For NOT gate scene
+            const [swB1, setSwB1] = useState(false); // For AND gate
+            const [swB2, setSwB2] = useState(false);
+            const [swC1, setSwC1] = useState(false); // For OR gate
+            const [swC2, setSwC2] = useState(false);
+
+            // Gate Logic
+            const notGateOutput = !swA; // Laser is ON if Switch is OFF (Logic: Trigger Alert?)
+            // Wait, let's align with the metaphor "Switch to Deactivate Laser" (Security)
+            // If Switch is ON (True) -> Laser should be OFF (Deactivated / False) ? 
+            // Or Switch is ON (True) -> Gate Output is Triggered.
+            // Let's stick to standard logic visualization:
+            // Input 0 -> NOT -> 1 (Laser ON)
+            // Input 1 -> NOT -> 0 (Laser OFF)
+
+            const andGateOutput = swB1 && swB2;
+            const orGateOutput = swC1 || swC2;
+
+            const Switch = ({ label, checked, onChange, color = "blue" }) => (
+                <div onClick={() => onChange(!checked)} className="cursor-pointer flex flex-col items-center gap-2 group">
+                    <div className={`w-12 h-20 rounded-full border-2 p-1 transition-colors ${checked ? `bg-${color}-500/20 border-${color}-400` : 'bg-slate-800 border-slate-600'}`}>
+                        <div className={`w-full h-1/2 rounded-full bg-current transition-all shadow-lg ${checked ? `translate-y-full text-${color}-400` : 'text-slate-500'}`}></div>
+                    </div>
+                    <span className="text-xs font-mono text-slate-400 group-hover:text-white transition-colors">{label}</span>
+                    <span className={`text-[10px] font-bold ${checked ? 'text-green-400' : 'text-slate-600'}`}>{checked ? 'TRUE (1)' : 'FALSE (0)'}</span>
+                </div>
+            );
+
+            const Laser = ({ active }) => (
+                <div className={`h-full w-2 rounded-full transition-all duration-300 ${active ? 'bg-red-500 laser-beam opacity-100' : 'bg-slate-800 opacity-20'}`}></div>
+            );
+
+            return (
+                <div className="space-y-12 w-full max-w-5xl">
+                    <div className="text-center space-y-2">
+                        <h3 className="text-2xl font-bold flex items-center justify-center gap-3 text-red-400">
+                            <Zap size={24} /> 逻辑门安保系统 (Boolean Logic)
+                        </h3>
+                        <p className="text-slate-400">只有输出 <span className="text-green-400 font-mono">TRUE</span> 才能解除激光防线。</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* NOT Gate Scenario */}
+                        <div className="glass-panel p-6 rounded-3xl flex flex-col items-center gap-6 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+                            <h4 className="font-bold text-lg mb-2">NOT Gate (反相器)</h4>
+
+                            <div className="flex items-center gap-8 w-full justify-center h-40">
+                                <Switch label="INPUT A" checked={swA} onChange={setSwA} color="purple" />
+                                <div className="flex flex-col items-center">
+                                    <div className="w-0 h-0 border-l-[20px] border-l-slate-700 border-y-[15px] border-y-transparent border-r-0 relative">
+                                        <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-slate-700 bg-slate-900"></div>
+                                    </div>
+                                    <span className="text-xs mt-2 font-mono text-slate-500">!A</span>
+                                </div>
+                                <div className="h-32 flex flex-col items-center justify-between py-2">
+                                    <div className={`transition-all duration-300 ${!notGateOutput ? 'opacity-100' : 'opacity-20 grayscale'}`}>
+                                        💎
+                                    </div>
+                                    <Laser active={notGateOutput} />
+                                    <div className={`text-xs font-bold ${!notGateOutput ? 'text-green-400' : 'text-red-400'}`}>
+                                        {notGateOutput ? 'LOCKED' : 'OPEN'}
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-xs text-slate-400 text-center">
+                                激光状态 = !输入。<br />
+                                (输入 TRUE 关闭激光)
+                            </p>
+                        </div>
+
+                        {/* AND Gate Scenario */}
+                        <div className="glass-panel p-6 rounded-3xl flex flex-col items-center gap-6 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                            <h4 className="font-bold text-lg mb-2">AND Gate (与门)</h4>
+
+                            <div className="flex items-center gap-4 w-full justify-center h-40">
+                                <div className="flex flex-col gap-4">
+                                    <Switch label="SW 1" checked={swB1} onChange={setSwB1} color="blue" />
+                                    <Switch label="SW 2" checked={swB2} onChange={setSwB2} color="blue" />
+                                </div>
+
+                                <div className="flex flex-col items-center">
+                                    <div className="w-8 h-8 rounded-r-full bg-slate-700 border-l-2 border-slate-600"></div>
+                                    <span className="text-xs mt-2 font-mono text-slate-500">&&</span>
+                                </div>
+
+                                <div className="h-32 flex flex-col items-center justify-between py-2">
+                                    <div className={`transition-all duration-300 ${andGateOutput ? 'opacity-100' : 'opacity-20 grayscale'}`}>
+                                        💰
+                                    </div>
+                                    <Laser active={!andGateOutput} />
+                                    <div className={`text-xs font-bold ${andGateOutput ? 'text-green-400' : 'text-red-400'}`}>
+                                        {andGateOutput ? 'OPEN' : 'LOCKED'}
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-xs text-slate-400 text-center">
+                                只有两个开关<span className="text-white font-bold">都</span>打开，<br />才能解除锁定。
+                            </p>
+                        </div>
+
+                        {/* OR Gate Scenario */}
+                        <div className="glass-panel p-6 rounded-3xl flex flex-col items-center gap-6 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-yellow-500"></div>
+                            <h4 className="font-bold text-lg mb-2">OR Gate (或门)</h4>
+
+                            <div className="flex items-center gap-4 w-full justify-center h-40">
+                                <div className="flex flex-col gap-4">
+                                    <Switch label="SW 1" checked={swC1} onChange={setSwC1} color="orange" />
+                                    <Switch label="SW 2" checked={swC2} onChange={setSwC2} color="orange" />
+                                </div>
+
+                                <div className="flex flex-col items-center">
+                                    <div className="w-8 h-8 rounded-r-full bg-slate-700 border-l-2 border-slate-600" style={{ clipPath: 'polygon(0% 0%, 100% 50%, 0% 100%, 20% 50%)' }}></div>
+                                    <span className="text-xs mt-2 font-mono text-slate-500">||</span>
+                                </div>
+
+                                <div className="h-32 flex flex-col items-center justify-between py-2">
+                                    <div className={`transition-all duration-300 ${orGateOutput ? 'opacity-100' : 'opacity-20 grayscale'}`}>
+                                        🏆
+                                    </div>
+                                    <Laser active={!orGateOutput} />
+                                    <div className={`text-xs font-bold ${orGateOutput ? 'text-green-400' : 'text-red-400'}`}>
+                                        {orGateOutput ? 'OPEN' : 'LOCKED'}
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-xs text-slate-400 text-center">
+                                <span className="text-white font-bold">任意</span>一个开关打开，<br />就能解除锁定。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Scene 4: Strings (Neon Sign Shop) ---
+        const NeonSignShop = () => {
+            const [str1, setStr1] = useState("HELLO");
+            const [str2, setStr2] = useState("WORLD");
+            const [finalStr, setFinalStr] = useState("HELLOWORLD");
+            const [start, setStart] = useState(0);
+            const [end, setEnd] = useState(5);
+
+            useEffect(() => {
+                setFinalStr(str1 + str2);
+                const combined = str1 + str2;
+                if (end > combined.length) setEnd(combined.length);
+                if (start > combined.length) setStart(combined.length);
+            }, [str1, str2]);
+
+            return (
+                <div className="space-y-12 w-full max-w-5xl">
+                    <div className="text-center space-y-2">
+                        <h3 className="text-2xl font-bold flex items-center justify-center gap-3 text-pink-400">
+                            <span className="animate-pulse">✨</span> 霓虹灯工坊 (Strings)
+                        </h3>
+                        <p className="text-slate-400">字符串拼接 (Concatenation) 与 切割 (Substring)</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Welding Station */}
+                        <div className="glass-panel p-6 rounded-3xl space-y-6">
+                            <h4 className="font-bold text-lg text-pink-300 flex items-center gap-2">
+                                🔧 拼接焊接台 (Concatenation)
+                            </h4>
+                            <div className="flex flex-col gap-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-mono text-slate-500">str1:</span>
+                                    <input value={str1} onChange={e => setStr1(e.target.value.toUpperCase())} className="bg-slate-800 border-slate-600 rounded px-2 py-1 code-font w-full text-pink-400" />
+                                </div>
+                                <div className="flex justify-center text-slate-500">+</div>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-mono text-slate-500">str2:</span>
+                                    <input value={str2} onChange={e => setStr2(e.target.value.toUpperCase())} className="bg-slate-800 border-slate-600 rounded px-2 py-1 code-font w-full text-blue-400" />
+                                </div>
+                                <div className="p-4 bg-slate-900 rounded-xl border border-slate-700 text-center relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-pink-500/5 animate-pulse"></div>
+                                    <span className="text-2xl font-bold code-font tracking-widest break-all" style={{ textShadow: '0 0 10px #ec4899, 0 0 20px #ec4899' }}>
+                                        {str1}<span className="text-blue-400" style={{ textShadow: '0 0 10px #60a5fa, 0 0 20px #60a5fa' }}>{str2}</span>
+                                    </span>
+                                    <div className="text-xs text-slate-500 mt-2 font-mono">Length: {str1.length + str2.length}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Cutting Station */}
+                        <div className="glass-panel p-6 rounded-3xl space-y-6">
+                            <h4 className="font-bold text-lg text-cyan-300 flex items-center gap-2">
+                                ✂️ 激光切割机 (Substring)
+                            </h4>
+                            <div className="space-y-4">
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <label className="text-xs text-slate-500 block mb-1">Start Index</label>
+                                        <input type="number" value={start} min={0} max={finalStr.length} onChange={e => setStart(Math.max(0, Math.min(Number(e.target.value), end)))} className="w-full bg-slate-800 rounded px-2 py-1" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="text-xs text-slate-500 block mb-1">End Index (Exclusive)</label>
+                                        <input type="number" value={end} min={start} max={finalStr.length} onChange={e => setEnd(Math.max(start, Math.min(Number(e.target.value), finalStr.length)))} className="w-full bg-slate-800 rounded px-2 py-1" />
+                                    </div>
+                                </div>
+
+                                {/* Visualization */}
+                                <div className="relative pt-6 pb-2 px-2 overflow-x-auto min-h-[80px]">
+                                    <div className="flex text-2xl font-mono tracking-widest whitespace-nowrap">
+                                        {finalStr.split('').map((char, i) => (
+                                            <div key={i} className={`relative px-1 transition-all duration-300 ${i >= start && i < end ? 'text-white scale-110 font-bold z-10' : 'text-slate-600 blur-[1px]'}`}>
+                                                {char}
+                                                <div className="absolute -top-4 left-0 text-[10px] text-slate-500 font-sans opacity-50">{i}</div>
+                                                {i >= start && i < end && <div className="absolute inset-0 bg-cyan-500/20 shadow-[0_0_10px_rgba(6,182,212,0.5)] rounded border border-cyan-500/30"></div>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="text-center">
+                                    <span className="text-sm text-slate-400">Result: </span>
+                                    <span className="font-mono text-cyan-400 text-xl border-b border-cyan-500 min-h-[30px] inline-block">{finalStr.substring(start, end)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Previously Existing Components (Integrated as Placeholders or Updated) ---
+        // Scene 3: Variables (Refactor of VariableDrawer)
+        const VariableDrawer = () => {
+            const [varName, setVarName] = useState('score');
+            const [varValue, setVarValue] = useState('100');
+            const [inputValue, setInputValue] = useState('');
+            const [history, setHistory] = useState([]);
+            const [isAnimating, setIsAnimating] = useState(false);
+
+            const handleAssign = () => {
+                if (!inputValue) return;
+                setIsAnimating(true);
+                setTimeout(() => {
+                    setHistory(prev => [{ old: varValue, new: inputValue, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 5));
+                    setVarValue(inputValue);
+                    setInputValue('');
+                    setIsAnimating(false);
+                }, 600);
+            };
+
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
+                    <div className="space-y-6">
+                        <div className="glass-panel p-6 rounded-3xl space-y-4">
+                            <h3 className="text-xl font-semibold flex items-center gap-2 text-blue-400">
+                                <Database size={24} /> 储物柜管理器 (Variables)
+                            </h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-sm text-slate-400 block mb-2">标签 (Name)</label>
+                                    <input
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 code-font outline-none focus:border-blue-500 transition-colors"
+                                        value={varName}
+                                        onChange={(e) => setVarName(e.target.value.replace(/\s/g, '_'))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm text-slate-400 block mb-2">存入新值 (Value)</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 code-font outline-none focus:border-blue-500 transition-colors"
+                                            value={inputValue}
+                                            placeholder="输入值..."
+                                            onChange={(e) => setInputValue(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAssign()}
+                                        />
+                                        <button
+                                            onClick={handleAssign}
+                                            className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl flex items-center gap-2 transition-all active:scale-95"
+                                        >
+                                            赋值 <ArrowRight size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="glass-panel p-6 rounded-3xl h-48 overflow-hidden">
+                            <h4 className="text-sm font-semibold text-slate-500 mb-4 uppercase tracking-wider">GC Log (History)</h4>
+                            <div className="space-y-2">
+                                {history.map((h, i) => (
+                                    <div key={i} className="flex items-center gap-3 text-sm animate-in fade-in slide-in-from-left duration-300">
+                                        <span className="text-slate-500">{h.time}</span>
+                                        <span className="line-through text-red-400">{h.old}</span>
+                                        <ArrowRight size={12} className="text-slate-600" />
+                                        <span className="text-green-400 font-bold">{h.new}</span>
+                                    </div>
+                                ))}
+                                {history.length === 0 && <p className="text-slate-600 italic">暂无记录...</p>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center p-8 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700 relative overflow-hidden">
+                        <div className="absolute top-4 left-4 text-xs font-mono text-slate-500">MEMORY_ADDRESS_0x04F</div>
+
+                        <div className="relative w-64 h-64 flex flex-col items-center">
+                            <div className="absolute -top-10 bg-yellow-400 text-slate-900 px-4 py-1 rounded-t-lg font-bold code-font shadow-lg z-10 border-b-2 border-yellow-600">
+                                {varName}
+                            </div>
+                            <div className="w-full h-48 bg-slate-700 rounded-b-3xl border-x-8 border-b-8 border-slate-600 flex items-center justify-center relative shadow-2xl">
+                                <div className="absolute inset-4 bg-slate-900 rounded-xl flex items-center justify-center overflow-hidden shadow-inner">
+                                    <div className={`text-4xl font-bold text-blue-400 code-font transition-all duration-500 ${isAnimating ? 'opacity-0 scale-50' : 'opacity-100 scale-100'}`}>
+                                        {varValue}
+                                    </div>
+                                    {isAnimating && (
+                                        <div className="absolute text-2xl text-red-400/50 line-through animate-out fade-out zoom-out-150 duration-500 translate-y-[-100%]">
+                                            {varValue}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="absolute -bottom-2 w-16 h-4 bg-slate-500 rounded-full cursor-pointer hover:bg-slate-400 transition-colors"></div>
+                            </div>
+                            <div className="absolute bottom-[-40px] text-xs text-slate-500 font-mono">Locker #{varName.toUpperCase().slice(0, 3)}</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Scene 5: Data Abstraction (The Starship Cockpit) ---
+        const StarshipCockpit = () => {
+            const [mode, setMode] = useState('implementation'); // 'implementation' or 'abstraction'
+            const [status, setStatus] = useState('idle'); // 'idle', 'ready', 'launched'
+
+            // Implementation details state
+            const [checks, setChecks] = useState({ fuel: false, nav: false, engine: false, lifeSupport: false });
+
+            const allChecksPassed = Object.values(checks).every(Boolean);
+
+            const launch = () => {
+                if (mode === 'implementation' && !allChecksPassed) return;
+                setStatus('launched');
+                setTimeout(() => {
+                    setStatus('idle');
+                    setChecks({ fuel: false, nav: false, engine: false, lifeSupport: false });
+                }, 2000);
+            };
+
+            const toggleCheck = (key) => {
+                setChecks(prev => ({ ...prev, [key]: !prev[key] }));
+            };
+
+            return (
+                <div className="space-y-8 w-full max-w-5xl">
+                    <div className="text-center space-y-2">
+                        <h3 className="text-2xl font-bold flex items-center justify-center gap-3 text-cyan-400">
+                            🚀 星际飞船驾驶舱 (Abstraction)
+                        </h3>
+                        <p className="text-slate-400 max-w-xl mx-auto">
+                            抽象 (Abstraction) 隐藏了复杂的实现细节 (Implementation Details)，只暴露简单的接口 (Interface)。
+                        </p>
+                    </div>
+
+                    <div className="flex justify-center gap-4 mb-8">
+                        <button
+                            onClick={() => setMode('implementation')}
+                            className={`px-6 py-2 rounded-full border transition-all ${mode === 'implementation' ? 'bg-slate-700 border-slate-500 text-white' : 'bg-transparent border-slate-700 text-slate-500'}`}
+                        >
+                            工程师视角 (Implementation)
+                        </button>
+                        <button
+                            onClick={() => setMode('abstraction')}
+                            className={`px-6 py-2 rounded-full border transition-all ${mode === 'abstraction' ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/50' : 'bg-transparent border-slate-700 text-slate-500'}`}
+                        >
+                            飞行员视角 (Interface)
+                        </button>
+                    </div>
+
+                    <div className="glass-panel p-8 rounded-3xl min-h-[400px] flex items-center justify-center relative overflow-hidden transition-all duration-500">
+                        {status === 'launched' && (
+                            <div className="absolute inset-0 bg-cyan-500/20 z-10 flex items-center justify-center backdrop-blur-sm animate-in fade-in zoom-in">
+                                <div className="text-4xl font-bold text-white tracking-[1em] animate-pulse">WARP SPEED</div>
+                            </div>
+                        )}
+
+                        {mode === 'implementation' ? (
+                            <div className="grid grid-cols-2 gap-6 w-full max-w-2xl animate-in fade-in slide-in-from-bottom-4">
+                                <div className="col-span-2 text-center text-xs font-mono text-red-400 mb-4 border border-red-500/30 bg-red-900/10 p-2 rounded">
+                                    警告：手动操作需严格遵循检查清单 (Complexity Exposed)
+                                </div>
+                                {Object.entries(checks).map(([key, val]) => (
+                                    <div key={key} onClick={() => toggleCheck(key)} className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${val ? 'border-green-500 bg-green-500/10' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}>
+                                        <span className="font-mono uppercase">{key}_SYS</span>
+                                        <div className={`w-4 h-4 rounded-full ${val ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-slate-900 border border-slate-600'}`}></div>
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={launch}
+                                    disabled={!allChecksPassed}
+                                    className="col-span-2 mt-4 py-4 bg-slate-800 border border-slate-600 text-slate-400 font-mono rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 hover:text-white transition-colors"
+                                >
+                                    INITIATE_MANUAL_LAUNCH_SEQUENCE()
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-8 animate-in fade-in zoom-in duration-500">
+                                <button
+                                    onClick={launch}
+                                    className="w-48 h-48 rounded-full bg-gradient-to-br from-red-500 to-red-600 shadow-[0_10px_50px_rgba(239,68,68,0.5)] border-4 border-red-400 active:scale-95 transition-transform flex items-center justify-center group"
+                                >
+                                    <span className="text-2xl font-bold text-white group-hover:scale-110 transition-transform">GO</span>
+                                </button>
+                                <p className="text-slate-400 text-sm">
+                                    不需要知道引擎怎么工作，只需要<span className="text-white font-bold">按按钮</span>。
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Scene 6: Lists (Playlist Deck)
+        const PlaylistDeck = () => {
+            const [list, setList] = useState(['🎵', '🎸', '🎹', '🎷']);
+            const [activeIndex, setActiveIndex] = useState(null);
+            const [movingIndex, setMovingIndex] = useState(null);
+
+            const addElement = (index) => {
+                const items = ['🎻', '🎺', '🥁', '🎤', '🪕'];
+                const newItem = items[Math.floor(Math.random() * items.length)];
+                setMovingIndex(index);
+                setTimeout(() => {
+                    const newList = [...list];
+                    newList.splice(index, 0, newItem);
+                    setList(newList.slice(0, 7));
+                    setMovingIndex(null);
+                }, 400);
+            };
+
+            const removeElement = (index) => {
+                const newList = [...list];
+                newList.splice(index, 1);
+                setList(newList);
+            };
+
+            return (
+                <div className="w-full space-y-12">
+                    <div className="text-center space-y-2">
+                        <h3 className="text-2xl font-bold flex items-center justify-center gap-3">
+                            <LayoutGrid className="text-purple-400" /> 播放列表 (List/Array)
+                        </h3>
+                        <p className="text-slate-400">就像 DJ 的歌单，插队会让后面所有歌的位置发生变化。</p>
+                    </div>
+
+                    <div className="flex flex-wrap justify-center gap-4 py-12">
+                        {list.map((item, i) => (
+                            <div
+                                key={i}
+                                className={`group relative w-24 h-32 flex flex-col transition-all duration-300 ${movingIndex !== null && i >= movingIndex ? 'translate-x-12' : ''}`}
+                                onMouseEnter={() => setActiveIndex(i)}
+                                onMouseLeave={() => setActiveIndex(null)}
+                            >
+                                <div className={`absolute -top-8 left-0 right-0 text-center font-mono text-sm transition-colors ${activeIndex === i ? 'text-blue-400 font-bold scale-110' : 'text-slate-500'}`}>
+                                    [{i}]
+                                </div>
+
+                                <div className={`flex-1 rounded-2xl border-2 flex items-center justify-center text-3xl shadow-lg transition-all ${activeIndex === i ? 'border-blue-500 bg-blue-500/10 -translate-y-2' : 'border-slate-700 bg-slate-800'}`}>
+                                    {item}
+                                    <div className="absolute -bottom-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                        <button onClick={() => addElement(i)} className="bg-green-600 p-1.5 rounded-full hover:bg-green-500 shadow-xl"><Plus size={14} /></button>
+                                        <button onClick={() => removeElement(i)} className="bg-red-600 p-1.5 rounded-full hover:bg-red-500 shadow-xl"><Trash2 size={14} /></button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {list.length < 7 && (
+                            <button onClick={() => addElement(list.length)} className="w-24 h-32 rounded-2xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:border-blue-500 hover:text-blue-500 transition-all">
+                                <Plus size={32} /><span className="text-xs uppercase mt-2">Append</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const PlaceholderScene = ({ title }) => (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-500 space-y-4 border-2 border-dashed border-slate-800 rounded-3xl bg-slate-900/50">
+                <div className="text-4xl animate-bounce">🚧</div>
+                <h3 className="text-xl font-bold">{title}</h3>
+                <p>Coming Soon...</p>
+            </div>
+        );
+
+        // --- Scene 7: Mathematical Expressions (Logic Tree) ---
+        const LogicTree = () => {
+            const [step, setStep] = useState(0); // 0: initial, 1: (3+5) solved, 2: *2 solved
+
+            // Visual data
+            const nodes = {
+                root: { label: '*', val: 16, x: 200, y: 50, solved: step >= 2 },
+                left: { label: '+', val: 8, x: 120, y: 150, solved: step >= 1 },
+                right: { label: '2', val: 2, x: 280, y: 150, isLeaf: true },
+                ll: { label: '3', val: 3, x: 80, y: 250, isLeaf: true },
+                lr: { label: '5', val: 5, x: 160, y: 250, isLeaf: true }
+            };
+
+            const solvePlus = () => {
+                if (step === 0) setStep(1);
+            };
+
+            const solveMult = () => {
+                if (step === 1) setStep(2);
+            };
+
+            const reset = () => setStep(0);
+
+            return (
+                <div className="flex flex-col items-center gap-8 w-full max-w-5xl">
+                    <div className="text-center space-y-2">
+                        <h3 className="text-2xl font-bold flex items-center justify-center gap-3 text-yellow-400">
+                            🌳 算术逻辑树 (Expression Tree)
+                        </h3>
+                        <p className="text-slate-400">
+                            数学表达式 <span className="font-mono text-white bg-slate-800 px-2 rounded">(3 + 5) * 2</span> 的计算过程是立体的。
+                        </p>
+                    </div>
+
+                    <div className="glass-panel p-8 rounded-3xl w-full max-w-lg h-[400px] relative flex justify-center">
+                        <svg className="w-full h-full" viewBox="0 0 400 300">
+                            {/* Lines */}
+                            <line x1={nodes.root.x} y1={nodes.root.y + 20} x2={nodes.left.x} y2={nodes.left.y - 20} stroke="#475569" strokeWidth="2" />
+                            <line x1={nodes.root.x} y1={nodes.root.y + 20} x2={nodes.right.x} y2={nodes.right.y - 20} stroke="#475569" strokeWidth="2" />
+
+                            {step < 1 && (
+                                <>
+                                    <line x1={nodes.left.x} y1={nodes.left.y + 20} x2={nodes.ll.x} y2={nodes.ll.y - 20} stroke="#475569" strokeWidth="2" />
+                                    <line x1={nodes.left.x} y1={nodes.left.y + 20} x2={nodes.lr.x} y2={nodes.lr.y - 20} stroke="#475569" strokeWidth="2" />
+                                </>
+                            )}
+
+                            {/* Nodes */}
+                            {/* Left Child Group (The Plus Operation) */}
+                            {step < 1 ? (
+                                <>
+                                    {/* The Plus Operator */}
+                                    <g onClick={solvePlus} className="cursor-pointer hover:opacity-80 transition-opacity">
+                                        <circle cx={nodes.left.x} cy={nodes.left.y} r="20" fill="#f59e0b" className="animate-pulse" />
+                                        <text x={nodes.left.x} y={nodes.left.y} dy="5" textAnchor="middle" fill="#fff" fontWeight="bold">+</text>
+                                    </g>
+                                    {/* Leaves */}
+                                    <circle cx={nodes.ll.x} cy={nodes.ll.y} r="18" fill="#334155" />
+                                    <text x={nodes.ll.x} y={nodes.ll.y} dy="5" textAnchor="middle" fill="#94a3b8">3</text>
+
+                                    <circle cx={nodes.lr.x} cy={nodes.lr.y} r="18" fill="#334155" />
+                                    <text x={nodes.lr.x} y={nodes.lr.y} dy="5" textAnchor="middle" fill="#94a3b8">5</text>
+                                </>
+                            ) : (
+                                // Resolved Plus Node
+                                <g>
+                                    <circle cx={nodes.left.x} cy={nodes.left.y} r="25" fill="#f59e0b" className="animate-in zoom-in" />
+                                    <text x={nodes.left.x} y={nodes.left.y} dy="5" textAnchor="middle" fill="#fff" fontWeight="bold">8</text>
+                                </g>
+                            )}
+
+                            {/* Right Leaf (2) */}
+                            <circle cx={nodes.right.x} cy={nodes.right.y} r="18" fill="#334155" />
+                            <text x={nodes.right.x} y={nodes.right.y} dy="5" textAnchor="middle" fill="#94a3b8">2</text>
+
+                            {/* Root Node (Multiply) */}
+                            {step < 2 ? (
+                                <g onClick={solveMult} className={`transition-opacity ${step === 1 ? 'cursor-pointer hover:opacity-80' : 'opacity-50'}`}>
+                                    <circle cx={nodes.root.x} cy={nodes.root.y} r="25" fill="#ef4444" className={step === 1 ? "animate-pulse" : ""} />
+                                    <text x={nodes.root.x} y={nodes.root.y} dy="8" textAnchor="middle" fill="#fff" fontWeight="bold" fontSize="20">*</text>
+                                </g>
+                            ) : (
+                                <g>
+                                    <circle cx={nodes.root.x} cy={nodes.root.y} r="35" fill="#22c55e" className="animate-in zoom-in" />
+                                    <text x={nodes.root.x} y={nodes.root.y} dy="8" textAnchor="middle" fill="#fff" fontWeight="bold" fontSize="24">16</text>
+                                </g>
+                            )}
+                        </svg>
+                    </div>
+
+                    <div className="flex gap-4">
+                        <button onClick={reset} className="px-4 py-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors">
+                            重置 (Reset)
+                        </button>
+                        <div className="px-4 py-2 bg-slate-900 rounded-lg font-mono text-slate-400">
+                            Result: <span className={step === 2 ? "text-green-400 font-bold" : "text-slate-600"}>{step === 2 ? '16' : '?'}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Scene 8: Conditionals (Railway Switch) ---
+        const RailwaySwitch = () => {
+            const [speed, setSpeed] = useState(50);
+            const [trainStatus, setTrainStatus] = useState('waiting'); // waiting, moving, finished
+            const [track, setTrack] = useState('straight'); // straight, branched
+
+            const threshold = 80;
+            const isHighSpeed = speed > threshold;
+
+            useEffect(() => {
+                if (trainStatus === 'waiting') {
+                    setTrack(isHighSpeed ? 'branched' : 'straight');
+                }
+            }, [speed, trainStatus]);
+
+            const startTrain = () => {
+                setTrainStatus('moving');
+                setTimeout(() => {
+                    setTrainStatus('finished');
+                }, 2000);
+            };
+
+            const reset = () => setTrainStatus('waiting');
+
+            return (
+                <div className="flex flex-col items-center gap-8 w-full max-w-5xl">
+                    <div className="text-center space-y-2">
+                        <h3 className="text-2xl font-bold flex items-center justify-center gap-3 text-orange-400">
+                            🛤️ 铁路道岔 (Conditionals)
+                        </h3>
+                        <p className="text-slate-400">
+                            代码的执行流 (Flow) 会根据条件 (<span className="font-mono">Speed &gt; 80</span>) 发生物理偏转。
+                        </p>
+                    </div>
+
+                    <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl flex flex-col items-center">
+                        <div className="w-full flex items-center gap-4 mb-8 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                            <span className="font-mono text-slate-400">SpeedSensor:</span>
+                            <input
+                                type="range"
+                                min="0" max="150"
+                                value={speed}
+                                onChange={(e) => trainStatus === 'waiting' && setSpeed(Number(e.target.value))}
+                                className="flex-1 accent-orange-500"
+                                disabled={trainStatus !== 'waiting'}
+                            />
+                            <span className={`font-mono text-xl w-16 text-right ${isHighSpeed ? 'text-red-400' : 'text-green-400'}`}>{speed}</span>
+                            <span className="text-xs text-slate-500">km/h</span>
+                        </div>
+
+                        <div className="relative w-full h-64 bg-slate-800 rounded-2xl overflow-hidden border border-slate-700">
+                            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                                <line x1="0" y1="128" x2="100" y2="128" stroke="#475569" strokeWidth="4" strokeDasharray="10,5" />
+                                <line x1="100" y1="128" x2="400" y2="128" stroke="#475569" strokeWidth="4" strokeDasharray="10,5" opacity={track === 'straight' ? 1 : 0.3} />
+                                <path d="M 100 128 C 150 128, 150 50, 400 50" fill="none" stroke="#475569" strokeWidth="4" strokeDasharray="10,5" opacity={track === 'branched' ? 1 : 0.3} />
+                                <circle cx="100" cy="128" r="8" fill={isHighSpeed ? "#ef4444" : "#22c55e"} />
+                            </svg>
+
+                            <div
+                                className="absolute left-0 top-[112px] transition-all duration-[2000ms] ease-linear flex items-center justify-center"
+                                style={{
+                                    transform: trainStatus === 'moving' || trainStatus === 'finished'
+                                        ? (track === 'straight' ? 'translate(350px, 0)' : 'translate(350px, -78px)')
+                                        : 'translate(0, 0)',
+                                }}
+                            >
+                                <div className="text-4xl">🚆</div>
+                            </div>
+
+                            <div className="absolute right-4 top-8 text-xs font-bold text-red-400 bg-red-900/20 px-2 py-1 rounded border border-red-900">
+                                HIGH SPEED LOOP
+                            </div>
+                            <div className="absolute right-4 top-28 text-xs font-bold text-green-400 bg-green-900/20 px-2 py-1 rounded border border-green-900">
+                                CITY STATION
+                            </div>
+
+                            <div className="absolute bottom-4 left-4 font-mono text-xs bg-black/50 p-2 rounded backdrop-blur-sm text-slate-300">
+                                <div className={isHighSpeed ? "" : "opacity-30"}>if (speed &gt; 80) &#123; switchTrack("LOOP"); &#125;</div>
+                                <div className={!isHighSpeed ? "" : "opacity-30"}>else &#123; switchTrack("CITY"); &#125;</div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8">
+                            {trainStatus === 'waiting' && (
+                                <button onClick={startTrain} className="px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold shadow-lg shadow-orange-900/40">
+                                    启动列车 (Simulate)
+                                </button>
+                            )}
+                            {trainStatus === 'finished' && (
+                                <button onClick={reset} className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl">
+                                    重置 (Reset)
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Main App ---
+        const App = () => {
+            const [currentScene, setCurrentScene] = useState(0);
+
+            const scenes = [
+                { title: "Introduction", subtitle: "The Robot Chef (Algorithms)", component: <RobotChef /> },
+                { title: "Boolean Expressions", subtitle: "The Laser Heist (Logic Gates)", component: <LaserHeist /> },
+                { title: "Variables", subtitle: "The Infinite Lockers", component: <VariableDrawer /> },
+                { title: "Strings", subtitle: "The Neon Sign Shop", component: <NeonSignShop /> },
+                { title: "Data Abstraction", subtitle: "The Starship Cockpit", component: <StarshipCockpit /> },
+                { title: "Lists", subtitle: "The DJ Playlist", component: <PlaylistDeck /> }, // Updated metaphor name in title
+                { title: "Mathematical Expressions", subtitle: "The Logic Tree", component: <LogicTree /> },
+                { title: "Conditionals", subtitle: "The Railway Switch", component: <RailwaySwitch /> },
+            ];
+
+            return (
+                <div className="flex flex-col h-screen bg-slate-950 text-slate-100 overflow-hidden">
+                    <header className="px-8 py-6 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center backdrop-blur-md z-10">
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
+                                <span className="p-2 bg-blue-600 rounded-xl"><Database size={24} /></span>
+                                AP-CSP: Algorithms & Programming
+                            </h1>
+                            <p className="text-slate-400 text-sm mt-1">
+                                <span className="text-blue-400 font-semibold">Unit 1.{currentScene + 1}</span> • {scenes[currentScene].title}
+                            </p>
+                        </div>
+                        <div className="hidden lg:flex gap-1">
+                            {scenes.map((_, i) => (
+                                <div
+                                    key={i}
+                                    onClick={() => setCurrentScene(i)}
+                                    className={`w-12 h-1.5 rounded-full transition-all duration-300 cursor-pointer hover:h-3 ${i === currentScene ? 'bg-blue-500' : 'bg-slate-800 hover:bg-slate-700'}`}
+                                    title={scenes[i].title}
+                                ></div>
+                            ))}
+                        </div>
+                    </header>
+
+                    <main className="flex-1 p-8 flex flex-col items-center overflow-y-auto w-full">
+                        <div className="w-full max-w-6xl animate-in fade-in zoom-in-95 duration-500 py-8">
+                            {/* Breadcrumb / Title of current scene */}
+                            <div className="mb-8 text-center">
+                                <h2 className="text-3xl font-bold text-white mb-2">{scenes[currentScene].subtitle}</h2>
+                                <div className="h-1 w-24 bg-gradient-to-r from-transparent via-blue-500 to-transparent mx-auto"></div>
+                            </div>
+                            {scenes[currentScene].component}
+                        </div>
+                    </main>
+
+                    <footer className="p-6 bg-slate-900/80 border-t border-slate-800 flex justify-between items-center backdrop-blur-md">
+                        <button
+                            onClick={() => setCurrentScene(prev => Math.max(0, prev - 1))}
+                            disabled={currentScene === 0}
+                            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 disabled:opacity-20 transition-all border border-slate-700 text-sm font-bold"
+                        >
+                            <ChevronLeft size={18} /> PREV
+                        </button>
+
+                        <div className="text-xs text-slate-600 font-mono hidden md:block">
+                            AP CSP / ALGORITHMS / DATA
+                        </div>
+
+                        <button
+                            onClick={() => setCurrentScene(prev => Math.min(scenes.length - 1, prev + 1))}
+                            disabled={currentScene === scenes.length - 1}
+                            className="flex items-center gap-2 px-8 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-20 transition-all shadow-lg shadow-blue-900/40 text-sm font-bold group"
+                        >
+                            NEXT UNIT <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>

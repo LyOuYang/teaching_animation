@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teaching Animation Collection | 教学演示合集</title>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --text-color: #2d3748;
+            --text-light: #718096;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --hover-shadow: rgba(0, 0, 0, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--primary-gradient);
+            /* Modern gradient background */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        header {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            letter-spacing: -0.025em;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        main {
+            flex: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem 4rem;
+            width: 100%;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 6px var(--shadow-color);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px var(--hover-shadow);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            background: rgba(118, 75, 162, 0.1);
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #1a202c;
+            font-weight: 700;
+        }
+
+        .card p {
+            color: var(--text-light);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+            flex: 1;
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--primary-gradient);
+            color: white;
+            text-decoration: none;
+            padding: 0.75rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            text-align: center;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .btn:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+            box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            header {
+                padding: 3rem 1rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Teaching Animation Collection</h1>
+        <p class="subtitle">Interactive learning modules for Computer Science principles.<br>Designed for clarity,
+            engagement, and effective learning.</p>
+    </header>
+
+    <main>
+        <div class="grid">
+            <!-- Binary Numbers -->
+            <div class="card">
+                <div class="card-icon">🔢</div>
+                <div class="card-content">
+                    <h2>Binary Numbers</h2>
+                    <p>Explore the binary number system, bitwise operations, and how computers represent data using 0s
+                        and 1s.</p>
+                </div>
+                <!-- Updated path to match user's structure -->
+                <a href="./AP/data/binary_number/binary_number.html" class="btn">Launch Demo</a>
+            </div>
+
+            <!-- AP Foundation -->
+            <div class="card">
+                <div class="card-icon">🏛️</div>
+                <div class="card-content">
+                    <h2>AP CSP Foundation</h2>
+                    <p>Core concepts of Computer Science Principles, including the internet architecture, data
+                        representation, and programming basics.</p>
+                </div>
+                <a href="./AP/data/ap_foundation/ap_foundation.html" class="btn">Launch Demo</a>
+            </div>
+
+            <!-- AP Algorithms -->
+            <div class="card">
+                <div class="card-icon">🧠</div>
+                <div class="card-content">
+                    <h2>AP Algorithms</h2>
+                    <p>Visualize standard algorithms, flowcharts, logic structures, and problem-solving techniques
+                        essential for AP CSP.</p>
+                </div>
+                <a href="./AP/data/ap_algorithms/ap_algorithms.html" class="btn">Launch Demo</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Teaching Animation Project. Deployment managed via GitHub & Cloudflare Pages.</p>
+    </footer>
+</body>
+
+</html>

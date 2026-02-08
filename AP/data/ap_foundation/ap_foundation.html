@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberHero: AP-CSP Logic Architect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom": "https://esm.sh/react-dom@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.292.0?external=react",
+            "framer-motion": "https://esm.sh/framer-motion@10.16.4?external=react,react-dom"
+        }
+    }
+    </script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.4/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;600;900&display=swap');
+
+        :root {
+            --bg: #020617;
+            --accent: #0ea5e9;
+            --neon-green: #22c55e;
+            --neon-pink: #f43f5e;
+            --neon-yellow: #eab308;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: #f8fafc;
+            overflow: hidden;
+        }
+
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .cyber-grid {
+            background-image: radial-gradient(rgba(14, 165, 233, 0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .neon-border {
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.3), inset 0 0 5px rgba(14, 165, 233, 0.2);
+            border: 1px solid rgba(14, 165, 233, 0.4);
+        }
+
+        .scanline {
+            width: 100%;
+            height: 2px;
+            background: rgba(14, 165, 233, 0.1);
+            position: absolute;
+            animation: scan 4s linear infinite;
+            z-index: 10;
+        }
+
+        @keyframes scan {
+            from {
+                top: 0;
+            }
+
+            to {
+                top: 100%;
+            }
+        }
+
+        .glitch-text:hover {
+            animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+        }
+
+        @keyframes glitch {
+            0% {
+                transform: translate(0);
+                text-shadow: -2px 0 var(--neon-pink), 2px 0 var(--accent);
+            }
+
+            20% {
+                transform: translate(-2px, 2px);
+            }
+
+            40% {
+                transform: translate(-2px, -2px);
+            }
+
+            60% {
+                transform: translate(2px, 2px);
+            }
+
+            80% {
+                transform: translate(2px, -2px);
+            }
+
+            100% {
+                transform: translate(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="cyber-grid">
+    <div class="scanline"></div>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react" data-type="module">
+        import React, { useState, useEffect, useRef, useMemo } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { motion, AnimatePresence } from 'framer-motion';
+        import {
+            Cpu, Terminal, Layers, Database, Shield, Zap, Search,
+            ChevronRight, Code2, Binary, Activity, Trash2, Plus
+        } from 'lucide-react';
+
+        // --- Context: Language State ---
+        const LanguageContext = React.createContext({ lang: 'en', setLang: () => { } });
+
+        // --- Tool Component: Bilingual Text (Toggle-based) ---
+        const T = ({ en, zh }) => {
+            const { lang } = React.useContext(LanguageContext);
+            return <span>{lang === 'en' ? en : zh}</span>;
+        };
+
+        // --- Sub-component: Memory Sector ---
+        const MemorySector = ({ address, label, type, value, color }) => {
+            return (
+                <motion.div
+                    layout
+                    className={`p-4 rounded-xl border-2 bg-slate-900/80 backdrop-blur-md flex flex-col gap-2 relative overflow-hidden group transition-all duration-500`}
+                    style={{
+                        borderColor: color,
+                        boxShadow: `0 0 20px ${color}20`
+                    }}
+                >
+                    <div className="flex justify-between items-start">
+                        <span className="text-[10px] code-font opacity-40 uppercase">{address}</span>
+                        <span className="text-[10px] code-font px-1.5 py-0.5 rounded bg-slate-800" style={{ color }}>{type}</span>
+                    </div>
+                    <div className="text-sm font-bold opacity-60 code-font uppercase tracking-tighter">{label}</div>
+
+                    <div className="h-12 flex items-center justify-center">
+                        <AnimatePresence mode='popLayout'>
+                            <motion.div
+                                key={value}
+                                initial={{ opacity: 0, y: -20, rotateX: 90 }}
+                                animate={{ opacity: 1, y: 0, rotateX: 0 }}
+                                exit={{ opacity: 0, y: 20, rotateX: -90 }}
+                                className="text-xl font-bold code-font tracking-tight text-white whitespace-nowrap overflow-hidden"
+                            >
+                                {type === "String" ? `"${value}"` : value}
+                            </motion.div>
+                        </AnimatePresence>
+                    </div>
+
+                    {/* 装饰线条 */}
+                    <div className="absolute bottom-0 left-0 h-1 bg-current opacity-20 transition-all duration-300 group-hover:w-full" style={{ color, width: '30%' }}></div>
+                </motion.div>
+            );
+        };
+
+        // --- Scene 1: Core Initialization (Variables, Strings, Abstraction) ---
+        const SceneInit = ({ onLog, state, setState }) => {
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full items-center">
+                    <div className="space-y-8">
+                        <div className="space-y-2">
+                            <h2 className="text-5xl font-black italic glitch-text">CORE_INIT</h2>
+                            <p className="text-slate-400 max-w-md text-sm leading-relaxed">
+                                <T en="Variables are memory aliases. Learn primitive types (int, double, String) and basic assignments." zh="变量是内存别名。学习基本类型（整数、浮点数、字符串）与赋值操作。" />
+                            </p>
+                        </div>
+
+                        <div className="space-y-4 max-w-md">
+                            <div className="space-y-1">
+                                <label className="text-xs code-font text-sky-400 flex items-center gap-2">
+                                    <Terminal size={12} /> <T en="ENTER NAME (String)" zh="输入名称 (字符串)" />
+                                </label>
+                                <input
+                                    className="w-full bg-slate-950 border-b-2 border-sky-900 border-x-0 border-t-0 p-3 code-font outline-none focus:border-sky-400 transition-all"
+                                    value={state.heroName}
+                                    placeholder="Type Name..."
+                                    onChange={(e) => {
+                                        setState({ ...state, heroName: e.target.value });
+                                        onLog(`hero.setName("${e.target.value}");`, "UPDATE");
+                                    }}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs code-font text-green-400 flex items-center gap-2">
+                                    <Binary size={12} /> <T en="XP MULTIPLIER (double)" zh="经验倍率 (双精度浮点数)" />
+                                </label>
+                                <input
+                                    type="range" min="1" max="5" step="0.5"
+                                    className="w-full h-1 bg-slate-800 accent-green-500 rounded-lg appearance-none cursor-pointer"
+                                    value={state.xpRate}
+                                    onChange={(e) => {
+                                        setState({ ...state, xpRate: parseFloat(e.target.value) });
+                                        onLog(`hero.xpRate = ${e.target.value};`, "UPDATE");
+                                    }}
+                                />
+                                <div className="text-right text-[10px] code-font text-green-500">{state.xpRate.toFixed(1)}x</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <MemorySector address="0x0041" label="hero_name" type="String" value={state.heroName} color="#0ea5e9" />
+                        <MemorySector address="0x0042" label="xp_rate" type="double" value={state.xpRate} color="#22c55e" />
+                        <MemorySector address="0x12FA" label="data_pkg" type="Object" value="HeroInstance" color="#8b5cf6" />
+                        <MemorySector address="0x12FB" label="ref_count" type="int" value="64" color="#eab308" />
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Scene 2: Matrix Calculation (Math, Advanced Strings) ---
+        const SceneMath = ({ onLog, state, setState }) => {
+            const finalPower = useMemo(() => (state.level * 15 * state.xpRate).toFixed(0), [state.level, state.xpRate]);
+            const fullTitle = useMemo(() => `LV.${state.level} ${state.heroName}`, [state.level, state.heroName]);
+
+            return (
+                <div className="flex flex-col gap-12 h-full justify-center">
+                    <div className="text-center space-y-4">
+                        <h2 className="text-5xl font-black text-white italic">POWER_CALC</h2>
+                        <p className="text-slate-400 text-sm">
+                            <T en="Master operator precedence and expression evaluation. Watch formulas compute step-by-step." zh="掌握运算符优先级与表达式求值。观察公式的逐步计算过程。" />
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-8 items-center bg-slate-900/50 p-8 rounded-3xl neon-border">
+                        {/* 输入项 */}
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                <span className="text-xs code-font opacity-50"><T en="Level" zh="等级" /></span>
+                                <span className="text-xl font-bold text-sky-400">{state.level}</span>
+                                <div className="flex flex-col gap-1">
+                                    <button onClick={() => {
+                                        setState({ ...state, level: state.level + 1 });
+                                        onLog(`level++; // New: ${state.level + 1}`, "MATH");
+                                    }} className="bg-slate-800 p-1 rounded hover:bg-sky-600 transition-colors"><ChevronRight size={12} className="-rotate-90" /></button>
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                <span className="text-xs code-font opacity-50"><T en="Base_ATK" zh="基础攻击力" /></span>
+                                <span className="text-xl font-bold text-green-400">15</span>
+                            </div>
+                        </div>
+
+                        {/* 公式层 */}
+                        <div className="flex flex-col items-center gap-4 py-8 relative">
+                            <div className="h-0.5 w-full bg-slate-800 absolute top-1/2 -translate-y-1/2 z-0"></div>
+                            <div className="z-10 bg-slate-900 px-4 py-2 rounded-full border border-slate-700 text-[10px] code-font">
+                                (level * 15) * xp_rate
+                            </div>
+                            <Code2 size={40} className="text-blue-500 opacity-20 animate-pulse" />
+                        </div>
+
+                        {/* 输出结果 */}
+                        <div className="space-y-4 text-center">
+                            <div className="p-6 rounded-2xl bg-sky-950/20 border-2 border-sky-500/50 shadow-[0_0_30px_rgba(14,165,233,0.3)]">
+                                <div className="text-[10px] code-font uppercase text-sky-500 mb-1 tracking-widest"><T en="Calculated Power" zh="计算战力" /></div>
+                                <div className="text-4xl font-black code-font">{finalPower}</div>
+                            </div>
+                            <div className="p-3 bg-slate-800/50 rounded-lg text-xs font-mono border border-slate-700">
+                                <span className="text-purple-400">String</span> fullTitle = <span className="text-yellow-400">"{fullTitle}"</span>;
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Scene 3: Instruction Matrix (Boolean, Advanced Conditionals) ---
+        const SceneLogic = ({ onLog }) => {
+            const [params, setParams] = useState({
+                hp: 15,
+                hasShield: false,
+                isDay: true,
+                energy: 80
+            });
+
+            const attackValid = useMemo(() => {
+                // 复合逻辑: (hp < 20 || hasShield) && energy > 50
+                return (params.hp < 20 || params.hasShield) && params.energy > 50;
+            }, [params]);
+
+            return (
+                <div className="flex flex-col gap-12 h-full justify-center">
+                    <div className="text-center">
+                        <h2 className="text-5xl font-black italic">LOGIC_GATE</h2>
+                        <p className="text-slate-400 mt-2 italic font-mono text-sm">(hp &lt; 20 || hasShield) && energy &gt; 50</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center h-[400px]">
+                        {/* 参数控制 */}
+                        <div className="space-y-6">
+                            <div className="glass-panel p-6 rounded-2xl space-y-6">
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-xs code-font">
+                                        <span className="text-red-400"><T en="Int HP (Vitality)" zh="整型 血量 (生命力)" /></span>
+                                        <span>{params.hp}</span>
+                                    </div>
+                                    <input type="range" min="0" max="100" value={params.hp} onChange={e => setParams({ ...params, hp: parseInt(e.target.value) })} className="w-full accent-red-500" />
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                                    <span className="text-xs code-font text-blue-400"><T en="boolean hasShield" zh="布尔型 有护盾" /></span>
+                                    <button onClick={() => setParams({ ...params, hasShield: !params.hasShield })}
+                                        className={`w-12 h-6 rounded-full transition-all relative ${params.hasShield ? 'bg-blue-600' : 'bg-slate-800'}`}>
+                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${params.hasShield ? 'left-7' : 'left-1'}`}></div>
+                                    </button>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-xs code-font">
+                                        <span className="text-yellow-400"><T en="Int Energy" zh="整型 能量" /></span>
+                                        <span>{params.energy}</span>
+                                    </div>
+                                    <input type="range" min="0" max="100" value={params.energy} onChange={e => setParams({ ...params, energy: parseInt(e.target.value) })} className="w-full accent-yellow-500" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 逻辑路径可视化 */}
+                        <div className="relative h-full border-l-2 border-slate-800 pl-12 flex flex-col justify-around">
+                            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-transparent via-slate-800 to-transparent"></div>
+
+                            {/* OR Gate */}
+                            <div className="flex items-center gap-4">
+                                <div className={`px-4 py-2 rounded border-2 transition-all ${params.hp < 20 || params.hasShield ? 'border-green-500 bg-green-500/10' : 'border-slate-800 bg-slate-900/50 opacity-40'}`}>
+                                    <T en="Sub-Logic A: (HP < 20 OR Shield)" zh="子逻辑 A: (血量 < 20 或 有护盾)" className="text-xs code-font" />
+                                </div>
+                                <span className={`text-xl font-black ${params.hp < 20 || params.hasShield ? 'text-green-500' : 'text-slate-800'}`}>{params.hp < 20 || params.hasShield ? 'TRUE' : 'FALSE'}</span>
+                            </div>
+
+                            <div className="w-1 h-8 bg-slate-800 ml-10"></div>
+
+                            {/* Final Decision */}
+                            <div className={`p-8 rounded-3xl border-4 transition-all duration-700 flex flex-col items-center gap-4 ${attackValid ? 'border-sky-500 bg-sky-500/10 shadow-[0_0_50px_rgba(14,165,233,0.3)]' : 'border-slate-800 bg-slate-900/50'}`}>
+                                <Zap size={48} className={attackValid ? 'text-sky-400 animate-pulse' : 'text-slate-800'} />
+                                <div className="text-center">
+                                    <div className="text-[10px] code-font opacity-40"><T en="IF ACTION_ALLOWED" zh="如果 允许行动" /></div>
+                                    <div className={`text-2xl font-black italic ${attackValid ? 'text-white' : 'text-slate-700'}`}>
+                                        {attackValid ? <T en="EXECUTE_OVERDRIVE" zh="执行超载" /> : <T en="ACCESS_DENIED" zh="访问拒绝" />}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Scene 4: Array Archiving (Lists, Filtering, Objects) ---
+        const SceneList = ({ onLog }) => {
+            const [loot, setLoot] = useState([
+                { id: 101, name: "Ion Blade", type: "Weapon", rarity: 4 },
+                { id: 102, name: "Med-Kit", type: "Utility", rarity: 1 },
+                { id: 103, name: "Flux Cap", type: "Utility", rarity: 3 },
+                { id: 104, name: "Railgun", type: "Weapon", rarity: 5 }
+            ]);
+            const [filterBy, setFilterBy] = useState("All");
+
+            const filteredLoot = loot.filter(item => filterBy === "All" || item.type === filterBy);
+
+            return (
+                <div className="flex flex-col gap-8 h-full justify-center">
+                    <div className="text-center space-y-2">
+                        <h2 className="text-5xl font-black italic tracking-tighter">INVENTORY_SYS</h2>
+                        <p className="text-slate-400 text-sm">
+                            <T en="ArrayList operations, for-each loops, and object property access." zh="ArrayList 操作、for-each 循环与对象属性访问。" />
+                        </p>
+                        <p className="text-slate-500 italic font-mono text-xs">
+                            <T en="for (Item i : loot) { if (i.type.equals(filter)) {...} }" zh="for (Item i : loot) { if (i.type.equals(筛选条件)) {...} }" />
+                        </p>
+                    </div>
+
+                    <div className="flex gap-4 self-center bg-slate-950 p-2 rounded-2xl border border-slate-800">
+                        {["All", "Weapon", "Utility"].map(f => (
+                            <button key={f} onClick={() => setFilterBy(f)} className={`px-6 py-2 rounded-xl text-xs font-bold transition-all ${filterBy === f ? 'bg-sky-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+                                {f.toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-4 h-[300px]">
+                        <AnimatePresence mode='popLayout'>
+                            {filteredLoot.map((item, idx) => (
+                                <motion.div
+                                    key={item.id}
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.8, y: 50 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.5, y: -50 }}
+                                    className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between relative group overflow-hidden"
+                                >
+                                    <div className="absolute top-0 right-0 p-2 text-[8px] code-font text-slate-700">INDEX_{idx}</div>
+                                    <div className="space-y-1">
+                                        <div className="text-xs uppercase text-sky-400 font-bold tracking-widest">{item.type}</div>
+                                        <div className="text-lg font-black">{item.name}</div>
+                                    </div>
+
+                                    <div className="flex gap-1">
+                                        {Array.from({ length: 5 }).map((_, i) => (
+                                            <div key={i} className={`w-2 h-2 rounded-full ${i < item.rarity ? 'bg-yellow-500 shadow-[0_0_5px_rgba(234,179,8,0.5)]' : 'bg-slate-800'}`}></div>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </div>
+
+                    <div className="p-4 bg-sky-950/20 border-l-4 border-sky-500 rounded-r-xl max-w-xl self-center flex items-center gap-4">
+                        <Layers size={32} className="text-sky-500" />
+                        <div className="text-xs text-sky-200">
+                            <T en="Loop Visualization: " zh="循环可视化: " />
+                            <span className="code-font font-bold">for(Item i : loot) if(i.type.equals("{filterBy}")) ...</span><br />
+                            <T en={`Items matching "${filterBy}" are moved to display buffer.`} zh={`满足 "${filterBy}" 条件的物品被移入显示缓存。`} />
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+
+        // --- 主应用程序 ---
+        const App = () => {
+            const [step, setStep] = useState(0);
+            const [logs, setLogs] = useState([]);
+            const [lang, setLang] = useState('en'); // 'en' or 'zh'
+            const [state, setState] = useState({
+                heroName: "ARTHUR_VX",
+                level: 5,
+                xpRate: 1.5,
+                isActive: true
+            });
+
+            const addLog = (text, type = "SYS") => {
+                const now = new Date().toLocaleTimeString('en-GB', { hour12: false });
+                setLogs(prev => [{ text, type, time: now }, ...prev].slice(0, 20));
+            };
+
+            const steps = [
+                { title: "Core Init", component: <SceneInit onLog={addLog} state={state} setState={setState} /> },
+                { title: "Power Calc", component: <SceneMath onLog={addLog} state={state} setState={setState} /> },
+                { title: "Logic Gate", component: <SceneLogic onLog={addLog} /> },
+                { title: "Inventory", component: <SceneList onLog={addLog} /> },
+            ];
+
+            return (
+                <LanguageContext.Provider value={{ lang, setLang }}>
+                    <div className="flex h-screen w-full relative">
+                        {/* 背景装饰 */}
+                        <div className="fixed inset-0 z-0 pointer-events-none opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+
+                        {/* 左侧主要区域 */}
+                        <div className="flex-1 flex flex-col p-8 z-10 relative">
+                            {/* 顶部状态栏 */}
+                            <div className="flex justify-between items-center mb-12">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-sky-600 rounded-2xl shadow-lg shadow-sky-900/50">
+                                        <Cpu className="text-white" size={24} />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-xl font-black tracking-tighter uppercase italic">CyberHero_OS <span className="text-sky-500 font-light">v1.2.9</span></h1>
+                                        <div className="flex gap-1 text-[8px] code-font text-slate-500">
+                                            <span className="animate-pulse text-green-500">● <T en="STABLE_CONNECTION" zh="稳定连接" /></span> | <T en="CORE_TEMP_36C" zh="核心温度36摄氏度" /> | <T en="PID_8842" zh="进程ID 8842" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 items-center">
+                                    {/* 语言切换按钮 */}
+                                    <button
+                                        onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')}
+                                        className="mr-4 px-3 py-1 rounded border border-slate-700 hover:border-sky-500 bg-slate-900 text-[10px] code-font text-slate-400 hover:text-white transition-colors flex items-center gap-2"
+                                    >
+                                        <div className="flex gap-1">
+                                            <span className={lang === 'en' ? 'text-sky-400 font-bold' : 'text-slate-600'}>EN</span>
+                                            <span className="text-slate-700">/</span>
+                                            <span className={lang === 'zh' ? 'text-sky-400 font-bold' : 'text-slate-600'}>CN</span>
+                                        </div>
+                                    </button>
+
+                                    {steps.map((s, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setStep(i)}
+                                            className={`px-4 py-2 rounded-full text-[10px] code-font font-bold transition-all border ${step === i ? 'bg-sky-600 border-sky-400 text-white shadow-[0_0_15px_rgba(14,165,233,0.5)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'}`}
+                                        >
+                                            [SCENE_0{i + 1}]
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* 核心显示区 */}
+                            <div className="flex-1 overflow-hidden relative">
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={step}
+                                        initial={{ opacity: 0, x: 50, scale: 0.95 }}
+                                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                                        exit={{ opacity: 0, x: -50, scale: 0.95 }}
+                                        transition={{ duration: 0.5, ease: "circOut" }}
+                                        className="h-full w-full"
+                                    >
+                                        {steps[step].component}
+                                    </motion.div>
+                                </AnimatePresence>
+                            </div>
+
+                            {/* 底部导航 */}
+                            <div className="mt-8 flex justify-between items-center border-t border-slate-800 pt-8">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] code-font text-slate-500 uppercase tracking-widest leading-none"><T en="Knowledge Module" zh="知识模块" /></span>
+                                    <span className="text-lg font-black italic tracking-tighter uppercase">{steps[step].title}</span>
+                                </div>
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={() => setStep(prev => Math.max(0, prev - 1))}
+                                        disabled={step === 0}
+                                        className="px-6 py-3 rounded-xl bg-slate-900 text-slate-500 border border-slate-800 disabled:opacity-20 hover:text-white transition-all text-xs font-bold"
+                                    >
+                                        <T en="PREV_SCENE" zh="上一场景" />
+                                    </button>
+                                    <button
+                                        onClick={() => setStep(prev => Math.min(steps.length - 1, prev + 1))}
+                                        disabled={step === steps.length - 1}
+                                        className="px-10 py-3 rounded-xl bg-sky-600 text-white font-black italic shadow-lg shadow-sky-900/50 hover:bg-sky-500 transition-all flex items-center gap-2 text-xs"
+                                    >
+                                        <T en="NEXT_UNIT" zh="下一单元" /> <ChevronRight size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 右侧控制台面板 */}
+                        <div className="w-[400px] bg-slate-950/90 backdrop-blur-3xl border-l-2 border-slate-900 flex flex-col p-6 z-20">
+                            <div className="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
+                                <Terminal size={20} className="text-sky-500" />
+                                <h3 className="text-sm font-black italic uppercase"><T en="Java_Kernel_Log" zh="Java内核日志" /></h3>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto space-y-4 font-mono text-[11px]">
+                                {logs.map((log, i) => (
+                                    <motion.div
+                                        key={i}
+                                        initial={{ x: 20, opacity: 0 }}
+                                        animate={{ x: 0, opacity: 1 }}
+                                        className="relative pl-4 border-l-2 border-slate-800 group"
+                                    >
+                                        <div className="flex justify-between text-[8px] text-slate-600 mb-1">
+                                            <span>{log.type}</span>
+                                            <span>{log.time}</span>
+                                        </div>
+                                        <div className={`transition-colors ${log.type === 'UPDATE' ? 'text-green-500' : log.type === 'MATH' ? 'text-sky-400' : 'text-slate-300'}`}>
+                                            <span className="text-slate-700 mr-2">&gt;</span>
+                                            {log.text}
+                                        </div>
+                                    </motion.div>
+                                ))}
+                                {logs.length === 0 && (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-700 opacity-30 text-center uppercase code-font">
+                                        <Activity size={40} className="mb-4" />
+                                        <T en="No Kernel Events Hooked" zh="未捕获到内核事件" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-6 pt-4 border-t border-slate-800">
+                                <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 text-[10px] code-font text-slate-500">
+                                    <p className="mb-2 leading-relaxed">
+                                        <T
+                                            en="Standardized on AP-CSA (Java). Demonstrating strong typing and JVM memory management logic."
+                                            zh="基于 AP-CSA (Java) 标准。展示强类型转换与 JVM 内存管理初步逻辑。"
+                                        />
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                        <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </LanguageContext.Provider>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
