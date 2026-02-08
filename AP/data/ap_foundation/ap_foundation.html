@@ -4,13 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CyberHero: AP-CSP Logic Architect</title>
+    <title>Smart Boba Manager: AP-CSP Logic</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
     {
         "imports": {
             "react": "https://esm.sh/react@18.2.0",
-            "react-dom": "https://esm.sh/react-dom@18.2.0",
             "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
             "lucide-react": "https://esm.sh/lucide-react@0.292.0?external=react",
             "framer-motion": "https://esm.sh/framer-motion@10.16.4?external=react,react-dom"
@@ -19,20 +18,22 @@
     </script>
     <script src="https://unpkg.com/@babel/standalone@7.24.4/babel.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;600;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;600&family=JetBrains+Mono:wght@400;700&display=swap');
 
         :root {
-            --bg: #020617;
-            --accent: #0ea5e9;
-            --neon-green: #22c55e;
-            --neon-pink: #f43f5e;
-            --neon-yellow: #eab308;
+            --tea-color: #d97706;
+            /* amber-600 */
+            --milk-color: #fef3c7;
+            /* amber-100 */
+            --boba-color: #451a03;
+            /* amber-950 */
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg);
-            color: #f8fafc;
+            font-family: 'Fredoka', sans-serif;
+            background-color: #fffbeb;
+            /* amber-50 */
+            color: #451a03;
             overflow: hidden;
         }
 
@@ -40,70 +41,53 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        .cyber-grid {
-            background-image: radial-gradient(rgba(14, 165, 233, 0.1) 1px, transparent 1px);
-            background-size: 30px 30px;
+        .cup-container {
+            position: relative;
+            width: 140px;
+            height: 200px;
+            border-left: 4px solid #451a03;
+            border-right: 4px solid #451a03;
+            border-bottom: 4px solid #451a03;
+            border-radius: 0 0 20px 20px;
+            background: rgba(255, 255, 255, 0.5);
+            overflow: hidden;
         }
 
-        .neon-border {
-            box-shadow: 0 0 15px rgba(14, 165, 233, 0.3), inset 0 0 5px rgba(14, 165, 233, 0.2);
-            border: 1px solid rgba(14, 165, 233, 0.4);
-        }
-
-        .scanline {
-            width: 100%;
-            height: 2px;
-            background: rgba(14, 165, 233, 0.1);
+        /* 液体动画 */
+        .liquid {
             position: absolute;
-            animation: scan 4s linear infinite;
-            z-index: 10;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        @keyframes scan {
-            from {
-                top: 0;
-            }
-
-            to {
-                top: 100%;
-            }
+        /* 传送带 */
+        .conveyor-belt {
+            background-image: repeating-linear-gradient(90deg, #78350f 0px, #78350f 10px, #451a03 10px, #451a03 20px);
+            background-size: 200% 100%;
+            animation: moveBelt 2s linear infinite;
         }
 
-        .glitch-text:hover {
-            animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
-        }
-
-        @keyframes glitch {
+        @keyframes moveBelt {
             0% {
-                transform: translate(0);
-                text-shadow: -2px 0 var(--neon-pink), 2px 0 var(--accent);
-            }
-
-            20% {
-                transform: translate(-2px, 2px);
-            }
-
-            40% {
-                transform: translate(-2px, -2px);
-            }
-
-            60% {
-                transform: translate(2px, 2px);
-            }
-
-            80% {
-                transform: translate(2px, -2px);
+                background-position: 0 0;
             }
 
             100% {
-                transform: translate(0);
+                background-position: -40px 0;
             }
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
     </style>
 </head>
 
-<body class="cyber-grid">
-    <div class="scanline"></div>
+<body>
     <div id="root"></div>
 
     <script type="text/babel" data-presets="react" data-type="module">
@@ -111,482 +95,696 @@
         import { createRoot } from 'react-dom/client';
         import { motion, AnimatePresence } from 'framer-motion';
         import {
-            Cpu, Terminal, Layers, Database, Shield, Zap, Search,
-            ChevronRight, Code2, Binary, Activity, Trash2, Plus
+            Coffee, Calculator, ShieldCheck, ListFilter, Play,
+            CheckCircle2, AlertTriangle, XCircle, RotateCcw, ChevronLeft, ChevronRight, Fingerprint
         } from 'lucide-react';
 
-        // --- Context: Language State ---
-        const LanguageContext = React.createContext({ lang: 'en', setLang: () => { } });
+        // --- Shared Components ---
 
-        // --- Tool Component: Bilingual Text (Toggle-based) ---
-        const T = ({ en, zh }) => {
-            const { lang } = React.useContext(LanguageContext);
-            return <span>{lang === 'en' ? en : zh}</span>;
+        const Button = ({ onClick, children, variant = 'primary', disabled = false, className = '' }) => {
+            const baseClass = "px-6 py-3 rounded-full font-bold transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2";
+            const variants = {
+                primary: "bg-amber-600 text-white hover:bg-amber-500 shadow-lg shadow-amber-900/20",
+                secondary: "bg-white text-amber-900 border-2 border-amber-100 hover:bg-amber-50",
+                danger: "bg-red-500 text-white hover:bg-red-400"
+            };
+            return <button onClick={onClick} disabled={disabled} className={`${baseClass} ${variants[variant]} ${className}`}>{children}</button>;
         };
 
-        // --- Sub-component: Memory Sector ---
-        const MemorySector = ({ address, label, type, value, color }) => {
-            return (
-                <motion.div
-                    layout
-                    className={`p-4 rounded-xl border-2 bg-slate-900/80 backdrop-blur-md flex flex-col gap-2 relative overflow-hidden group transition-all duration-500`}
-                    style={{
-                        borderColor: color,
-                        boxShadow: `0 0 20px ${color}20`
-                    }}
-                >
-                    <div className="flex justify-between items-start">
-                        <span className="text-[10px] code-font opacity-40 uppercase">{address}</span>
-                        <span className="text-[10px] code-font px-1.5 py-0.5 rounded bg-slate-800" style={{ color }}>{type}</span>
-                    </div>
-                    <div className="text-sm font-bold opacity-60 code-font uppercase tracking-tighter">{label}</div>
+        const CodeInput = ({ prefix, value, suffix, type = "text", options = [], onChange, width = "w-20", color = "text-blue-600" }) => (
+            <div className="font-mono text-sm md:text-base flex items-center flex-wrap gap-1 bg-slate-100 p-2 rounded-lg border border-slate-300">
+                <span className="text-slate-500 font-bold select-none">{prefix}</span>
 
-                    <div className="h-12 flex items-center justify-center">
-                        <AnimatePresence mode='popLayout'>
-                            <motion.div
-                                key={value}
-                                initial={{ opacity: 0, y: -20, rotateX: 90 }}
-                                animate={{ opacity: 1, y: 0, rotateX: 0 }}
-                                exit={{ opacity: 0, y: 20, rotateX: -90 }}
-                                className="text-xl font-bold code-font tracking-tight text-white whitespace-nowrap overflow-hidden"
+                {type === "select" ? (
+                    <select
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className={`bg-white border-b-2 border-amber-500 outline-none font-bold ${color} px-1 py-0.5 rounded cursor-pointer hover:bg-amber-50`}
+                    >
+                        {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                ) : type === "boolean" ? (
+                    <button
+                        onClick={() => onChange(!value)}
+                        className={`font-bold px-2 py-0.5 rounded border-b-2 outline-none transition-colors ${value ? 'text-blue-600 border-blue-500 bg-blue-50' : 'text-red-500 border-red-500 bg-red-50'}`}
+                    >
+                        {value.toString()}
+                    </button>
+                ) : (
+                    <input
+                        type={type}
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className={`bg-white border-b-2 border-amber-500 outline-none font-bold text-center ${color} ${width} px-1 py-0.5 rounded focus:bg-amber-50 transition-colors`}
+                    />
+                )}
+
+                <span className="text-slate-500 font-bold select-none">{suffix}</span>
+            </div>
+        );
+
+        const SuccessModal = ({ show, message, onNext }) => (
+            <AnimatePresence>
+                {show && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.5, y: 50 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.5, y: 50 }}
+                            className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm text-center border-4 border-green-400"
+                        >
+                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
+                                <CheckCircle2 size={48} />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-800 mb-2">Excellent!</h3>
+                            <p className="text-slate-600 mb-6 font-bold">{message}</p>
+                            <Button onClick={onNext}>Next Level <ChevronRight size={20} /></Button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        );
+
+        // --- Scene 1: The Mixologist (Variables) ---
+        const SceneMixer = ({ onComplete }) => {
+            const initialTarget = { tea: "Oolong", size: 700, sugar: 0.5, ice: false };
+            const [config, setConfig] = useState({ tea: "Black", size: 500, sugar: 1.0, ice: true });
+            const [submitted, setSubmitted] = useState(false);
+            const isMatch = JSON.stringify(config) === JSON.stringify(initialTarget);
+
+            const handleServe = () => {
+                setSubmitted(true);
+                if (isMatch) {
+                    setTimeout(onComplete, 1000);
+                } else {
+                    setTimeout(() => setSubmitted(false), 2000);
+                }
+            };
+
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center h-full">
+                    {/* Order Ticket */}
+                    <div className="space-y-8">
+                        <div className="bg-white p-8 rounded-2xl shadow-xl border-t-8 border-amber-500 relative transform -rotate-1">
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-100 px-4 py-1 rounded-full text-xs font-bold tracking-widest text-amber-800 uppercase shadow-sm">New Order #1042</div>
+                            <h3 className="text-2xl font-black text-slate-900 mb-6 border-b-2 border-slate-100 pb-2">Customer Request</h3>
+                            <ul className="space-y-4 text-slate-700 text-lg font-bold">
+                                <li className="flex justify-between items-center"><span className="text-slate-400 font-medium text-sm uppercase tracking-wider">Base</span> <span>Oolong (乌龙)</span></li>
+                                <li className="flex justify-between items-center"><span className="text-slate-400 font-medium text-sm uppercase tracking-wider">Size</span> <span>Large (700ml)</span></li>
+                                <li className="flex justify-between items-center"><span className="text-slate-400 font-medium text-sm uppercase tracking-wider">Sugar</span> <span>50% (0.5)</span></li>
+                                <li className="flex justify-between items-center"><span className="text-slate-400 font-medium text-sm uppercase tracking-wider">Ice</span> <span>No Ice (false)</span></li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg">
+                            <p className="text-amber-800 font-bold text-sm">Mission:</p>
+                            <p className="text-amber-900">Write the code variables to match the customer order exactly.</p>
+                        </div>
+                    </div>
+
+                    {/* Controls & Drink */}
+                    <div className="flex flex-col items-center gap-8 bg-white/60 p-8 rounded-3xl border-2 border-white backdrop-blur-sm shadow-sm">
+
+                        <div className="cup-container shadow-2xl relative">
+                            <div
+                                className="liquid w-full absolute bottom-0 transition-all duration-700"
+                                style={{
+                                    height: `${Math.min(100, (config.size / 700) * 85)}%`,
+                                    backgroundColor: config.tea === 'Black' ? '#7f1d1d' : config.tea === 'Green' ? '#d9f99d' : '#d97706',
+                                    opacity: 0.9
+                                }}
+                            ></div>
+                            <div className="absolute inset-0 bg-white/30 pointer-events-none transition-opacity" style={{ opacity: config.sugar }}></div>
+                            <AnimatePresence>
+                                {config.ice && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                                        className="absolute top-10 left-4 w-8 h-8 bg-white/40 border border-white/60 rounded backdrop-blur-sm rotate-12"
+                                    ></motion.div>
+                                )}
+                            </AnimatePresence>
+                            <div className="absolute bottom-4 left-0 right-0 text-center text-[10px] font-bold text-white/80 uppercase tracking-wider">{config.tea}</div>
+                        </div>
+
+                        {/* Code Editor Panel */}
+                        <div className="w-full space-y-3 bg-slate-900 p-6 rounded-2xl shadow-inner">
+                            <div className="text-xs text-slate-400 font-mono mb-2">// Configure Order Variables</div>
+
+                            <CodeInput
+                                prefix="String tea ="
+                                value={config.tea}
+                                type="select"
+                                options={['Black', 'Green', 'Oolong']}
+                                onChange={v => setConfig({ ...config, tea: v })}
+                                suffix=";"
+                                color="text-green-600"
+                            />
+
+                            <CodeInput
+                                prefix="int size ="
+                                value={config.size}
+                                type="number"
+                                onChange={v => setConfig({ ...config, size: parseInt(v) || 0 })}
+                                suffix=";"
+                                color="text-orange-600"
+                            />
+
+                            <CodeInput
+                                prefix="double sugar ="
+                                value={config.sugar}
+                                type="number"
+                                onChange={v => setConfig({ ...config, sugar: parseFloat(v) || 0 })}
+                                suffix=";"
+                                color="text-blue-600"
+                            />
+
+                            <CodeInput
+                                prefix="boolean hasIce ="
+                                value={config.ice}
+                                type="boolean"
+                                onChange={v => setConfig({ ...config, ice: v })}
+                                suffix=";"
+                            />
+                        </div>
+
+                        <Button onClick={handleServe} disabled={submitted} className="w-full">
+                            {submitted ? (isMatch ? "Perfect Match!" : "Wrong Order!") : "Run Code & Serve"}
+                        </Button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Scene 2: Pricing Strategy (Math) ---
+        const ScenePricing = ({ onComplete }) => {
+            const [discount, setDiscount] = useState(0.8);
+            const [topCost, setTopCost] = useState(4);
+            const currentPrice = ((15 + 5 * topCost) * discount).toFixed(1);
+            const targetPrice = "25.0";
+            const isSuccess = currentPrice === targetPrice;
+
+            return (
+                <div className="flex flex-col gap-10 items-center justify-center h-full max-w-2xl mx-auto">
+                    <div className="text-center space-y-4">
+                        <h2 className="text-4xl font-black text-slate-900">Target Pricing: $25.0</h2>
+                        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl inline-block">
+                            <p className="text-blue-800 font-bold mb-1">Mission:</p>
+                            <p className="text-blue-900">Adjust the Topping Cost and Discount Rate variables to hit the <b>exact</b> target price.</p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-8 w-full bg-white p-8 rounded-3xl shadow-xl border border-amber-100 relative">
+                        {/* Code Representation */}
+                        <div className="font-mono text-sm bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-600">
+                            double base = 15.0;<br />
+                            int toppingCount = 5;<br />
+                            <br />
+                            <span className="text-slate-400">// Adjust these two variables:</span><br />
+                            <span className="font-bold text-amber-600">
+                                double topCost = {topCost}.0;<br />
+                                double discount = {discount.toFixed(1)};
+                            </span>
+                            <br /><br />
+                            double finalPrice = (base + toppingCount * topCost) * discount;
+                        </div>
+
+                        {/* Result Big Display */}
+                        <div className="flex justify-between items-center bg-slate-900 text-white p-6 rounded-2xl shadow-inner">
+                            <div className="text-right w-full">
+                                <div className="text-xs text-slate-400 mb-1 uppercase tracking-widest">Calculated Price</div>
+                                <div className={`text-5xl font-black font-mono transition-colors duration-300 ${isSuccess ? 'text-green-400' : 'text-white'}`}>
+                                    ${currentPrice}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-3">
+                                <label className="flex justify-between font-bold text-amber-800">
+                                    <span>Topping Cost</span>
+                                    <span className="font-mono text-lg bg-amber-100 px-2 rounded">${topCost}</span>
+                                </label>
+                                <input type="range" min="1" max="5" step="1" value={topCost} onChange={e => setTopCost(parseInt(e.target.value))} className="w-full accent-amber-600 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
+                            </div>
+                            <div className="space-y-3">
+                                <label className="flex justify-between font-bold text-blue-800">
+                                    <span>Discount Rate</span>
+                                    <span className="font-mono text-lg bg-blue-100 px-2 rounded">{discount.toFixed(1)}</span>
+                                </label>
+                                <input type="range" min="0.5" max="1.5" step="0.1" value={discount} onChange={e => setDiscount(parseFloat(e.target.value))} className="w-full accent-blue-500 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="h-12">
+                        {isSuccess && (
+                            <motion.button
+                                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                onClick={onComplete}
+                                className="px-10 py-4 bg-green-500 text-white font-bold rounded-full shadow-xl hover:bg-green-400 flex items-center gap-2 text-lg"
                             >
-                                {type === "String" ? `"${value}"` : value}
-                            </motion.div>
+                                <CheckCircle2 size={24} /> Deploy Algorithm
+                            </motion.button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Scene 3: Quality Firewall (Conditionals) ---
+        const SceneQuality = ({ onComplete }) => {
+
+            const [op1, setOp1] = useState('>');
+            const [val1, setVal1] = useState(0.5);
+            const [logic, setLogic] = useState('&&');
+            const [cond2, setCond2] = useState('!ice');
+
+            const [score, setScore] = useState(0);
+            const [isRunning, setIsRunning] = useState(false);
+            const [currentItem, setCurrentItem] = useState(null);
+            const [feedback, setFeedback] = useState(null);
+            const [debugInfo, setDebugInfo] = useState(null);
+
+            // Correct Logic: sugar > 0.8 && !ice
+            const isLogicCorrect = op1 === '>' && val1 == 0.8 && logic === '&&' && cond2 === '!ice';
+
+            // Items to process
+            const stream = [
+                { id: 1, sugar: 0.9, ice: false, label: "Dangerous" },
+                { id: 2, sugar: 0.3, ice: true, label: "Safe" },
+                { id: 3, sugar: 1.0, ice: false, label: "Dangerous" }, // The critical one
+                { id: 4, sugar: 0.5, ice: false, label: "Safe" },
+                { id: 5, sugar: 0.2, ice: true, label: "Safe" },
+            ];
+
+            const startSimulation = () => {
+                setIsRunning(true);
+                setScore(0);
+                setDebugInfo(null);
+                processNext(0);
+            };
+
+            const processNext = (index) => {
+                if (index >= stream.length) {
+                    setIsRunning(false);
+                    setCurrentItem(null);
+                    setDebugInfo(null);
+                    if (isLogicCorrect) setTimeout(onComplete, 1000);
+                    return;
+                }
+
+                const item = stream[index];
+                setCurrentItem(item);
+                setDebugInfo(null);
+
+                // Emulate checking logic time
+                setTimeout(() => {
+                    // Logic evaluation for visualization
+                    let condition1 = false;
+                    if (op1 === '>') condition1 = item.sugar > val1;
+                    if (op1 === '<') condition1 = item.sugar < val1;
+
+                    let condition2 = false;
+                    if (cond2 === '!ice') condition2 = !item.ice;
+                    if (cond2 === 'ice') condition2 = item.ice;
+
+                    let shouldReject = false;
+                    if (logic === '&&') shouldReject = condition1 && condition2;
+                    if (logic === '||') shouldReject = condition1 || condition2;
+
+                    setDebugInfo({
+                        c1: condition1,
+                        c2: condition2,
+                        res: shouldReject
+                    });
+
+                    const actuallyDangerous = item.label === "Dangerous";
+                    const action = shouldReject ? 'REJECT' : 'PASS';
+                    const correctAction = actuallyDangerous ? 'REJECT' : 'PASS';
+
+                    if (action === correctAction) {
+                        setScore(s => s + 1);
+                        setFeedback('CORRECT');
+                    } else {
+                        setFeedback('WRONG');
+                    }
+
+                    setTimeout(() => {
+                        setFeedback(null);
+                        processNext(index + 1);
+                    }, 1500); // Slower for observation
+
+                }, 800);
+            };
+
+            return (
+                <div className="flex flex-col gap-8 items-center h-full justify-center max-w-4xl mx-auto">
+                    <div className="text-center space-y-4">
+                        <div className="flex items-center justify-center gap-2 text-red-600">
+                            <AlertTriangle size={32} />
+                            <h2 className="text-3xl font-black text-slate-900">Emergency: Syrup Shock!</h2>
+                        </div>
+
+                        <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded shadow-sm text-left max-w-2xl mx-auto">
+                            <p className="text-red-900 font-bold mb-2 text-lg">Mission Brief:</p>
+                            <p className="text-slate-700 text-lg leading-relaxed">
+                                Customers are complaining about extremely sweet, warm drinks.
+                                We need to configure the Quality Bot to <b>REJECT</b> any cup that meets <b>BOTH</b> these conditions:
+                            </p>
+                            <ul className="list-disc pl-6 mt-2 text-slate-800 font-bold text-lg">
+                                <li>Sugar Level is greater than 0.8 ({'>'} 0.8)</li>
+                                <li>Ice is missing (!ice)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-8 w-full items-start">
+                        {/* Logic Builder - Text Based */}
+                        <div className="flex-1 bg-slate-900 p-8 rounded-2xl border-2 border-slate-700 shadow-2xl relative w-full">
+                            <div className="absolute top-0 right-0 bg-slate-800 text-slate-400 text-xs px-2 py-1 rounded-bl-lg font-mono">LOGIC CONTROLLER</div>
+                            <div className="text-slate-400 font-mono text-sm mb-4">// Construct the rejection condition:</div>
+
+                            <div className="flex flex-wrap items-center gap-2 font-mono text-lg text-white mb-6">
+                                <span className="text-purple-400">if</span>
+                                <span className="text-slate-300">(</span>
+
+                                <div className="flex flex-col items-center bg-slate-800 p-2 rounded border border-slate-600">
+                                    <div className="text-[10px] text-slate-500 mb-1">Condition A</div>
+                                    <div className="flex items-center gap-1">
+                                        <span>sugar</span>
+                                        <select className="bg-slate-700 border border-slate-500 rounded px-1 py-0.5 text-center text-sm" value={op1} onChange={e => setOp1(e.target.value)}>
+                                            <option value=">">&gt;</option>
+                                            <option value="<">&lt;</option>
+                                        </select>
+                                        <input
+                                            type="number" step="0.1"
+                                            className="w-16 bg-slate-700 border border-slate-500 rounded px-1 py-0.5 text-center text-sm"
+                                            value={val1} onChange={e => setVal1(parseFloat(e.target.value))}
+                                        />
+                                    </div>
+                                </div>
+
+                                <select className="bg-amber-900/50 border border-amber-500 rounded px-2 py-1 text-center font-bold text-amber-500 mx-1" value={logic} onChange={e => setLogic(e.target.value)}>
+                                    <option value="&&">&& (AND)</option>
+                                    <option value="||">|| (OR)</option>
+                                </select>
+
+                                <div className="flex flex-col items-center bg-slate-800 p-2 rounded border border-slate-600">
+                                    <div className="text-[10px] text-slate-500 mb-1">Condition B</div>
+                                    <select className="bg-slate-700 border border-slate-500 rounded px-1 py-0.5 text-center text-sm" value={cond2} onChange={e => setCond2(e.target.value)}>
+                                        <option value="!ice">!ice (No Ice)</option>
+                                        <option value="ice">ice (Has Ice)</option>
+                                    </select>
+                                </div>
+
+                                <span className="text-slate-300">)</span>
+                                <span className="text-purple-400">{' { reject(); }'}</span>
+                            </div>
+
+                            <Button onClick={startSimulation} disabled={isRunning} variant={isRunning ? 'secondary' : 'primary'} className="w-full">
+                                {isRunning ? "Scanning Stream..." : "Deploy Logic & Test"}
+                            </Button>
+                        </div>
+
+                        {/* Debug Console */}
+                        <div className="w-full md:w-64 bg-black rounded-xl p-4 font-mono text-xs text-green-400 border border-green-900 h-40 overflow-hidden relative shadow-[0_0_15px_rgba(0,255,0,0.1)]">
+                            <div className="border-b border-green-900 pb-1 mb-2 text-green-600 font-bold flex justify-between">
+                                <span>DEBUG CONSOLE</span>
+                                {isRunning && <span className="animate-pulse">● LIVE</span>}
+                            </div>
+                            {debugInfo ? (
+                                <div className="space-y-1">
+                                    <div className="text-slate-400">Evaluating Cup #{currentItem?.id}:</div>
+                                    <div className="flex justify-between">
+                                        <span>Sugar {currentItem?.sugar} {op1} {val1}</span>
+                                        <span className={debugInfo.c1 ? "text-green-400" : "text-red-500"}>{debugInfo.c1.toString().toUpperCase()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Ice {currentItem?.ice ? 'YES' : 'NO'} {cond2 === '!ice' ? 'is NoIce?' : 'is Ice?'}</span>
+                                        <span className={debugInfo.c2 ? "text-green-400" : "text-red-500"}>{debugInfo.c2.toString().toUpperCase()}</span>
+                                    </div>
+                                    <div className="border-t border-green-900 pt-1 mt-1 flex justify-between font-bold">
+                                        <span>LOGIC RESULT:</span>
+                                        <span className={debugInfo.res ? "text-red-400" : "text-blue-400"}>{debugInfo.res ? 'TRUE (REJECT)' : 'FALSE (PASS)'}</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-slate-600 italic">Waiting to process stream...</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Simulation Belt */}
+                    <div className="w-full bg-slate-200 rounded-xl relative h-40 flex items-center justify-center border-t-4 border-b-4 border-slate-300 conveyor-belt overflow-hidden">
+                        <AnimatePresence mode='wait'>
+                            {currentItem && (
+                                <motion.div
+                                    key={currentItem.id}
+                                    initial={{ x: -200, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    exit={{ x: 200, opacity: 0, scale: 0.5, rotate: 20 }}
+                                    className={`relative p-4 bg-white rounded-xl shadow-lg border-4 w-32 flex flex-col items-center 
+                                        ${currentItem.label === 'Dangerous' ? 'border-red-400' : 'border-green-400'}`}
+                                >
+                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase tracking-wider shadow-sm"
+                                        style={{ backgroundColor: currentItem.label === 'Dangerous' ? '#ef4444' : '#22c55e' }}>
+                                        {currentItem.label}
+                                    </div>
+                                    <Coffee size={32} className={currentItem.sugar > 0.8 ? 'text-red-500' : 'text-amber-600'} />
+                                    <div className="mt-2 text-[10px] font-mono space-y-1 w-full text-left font-bold text-slate-600">
+                                        <div className="flex justify-between"><span>S:</span><span>{currentItem.sugar}</span></div>
+                                        <div className="flex justify-between"><span>I:</span><span>{currentItem.ice ? 'ON' : 'OFF'}</span></div>
+                                    </div>
+
+                                    {feedback && (
+                                        <motion.div
+                                            initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                                            className={`absolute inset-0 flex items-center justify-center font-black rotate-12 bg-white/95 backdrop-blur-sm z-10 border-4 rounded-xl text-center leading-tight p-1
+                                                ${feedback === 'CORRECT' ? 'text-green-600 border-green-500' : 'text-red-600 border-red-500'}`}
+                                        >
+                                            {feedback === 'CORRECT' ? 'GOOD' : 'LOGIC FAIL!'}
+                                        </motion.div>
+                                    )}
+                                </motion.div>
+                            )}
                         </AnimatePresence>
                     </div>
 
-                    {/* 装饰线条 */}
-                    <div className="absolute bottom-0 left-0 h-1 bg-current opacity-20 transition-all duration-300 group-hover:w-full" style={{ color, width: '30%' }}></div>
-                </motion.div>
-            );
-        };
-
-        // --- Scene 1: Core Initialization (Variables, Strings, Abstraction) ---
-        const SceneInit = ({ onLog, state, setState }) => {
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full items-center">
-                    <div className="space-y-8">
-                        <div className="space-y-2">
-                            <h2 className="text-5xl font-black italic glitch-text">CORE_INIT</h2>
-                            <p className="text-slate-400 max-w-md text-sm leading-relaxed">
-                                <T en="Variables are memory aliases. Learn primitive types (int, double, String) and basic assignments." zh="变量是内存别名。学习基本类型（整数、浮点数、字符串）与赋值操作。" />
-                            </p>
-                        </div>
-
-                        <div className="space-y-4 max-w-md">
-                            <div className="space-y-1">
-                                <label className="text-xs code-font text-sky-400 flex items-center gap-2">
-                                    <Terminal size={12} /> <T en="ENTER NAME (String)" zh="输入名称 (字符串)" />
-                                </label>
-                                <input
-                                    className="w-full bg-slate-950 border-b-2 border-sky-900 border-x-0 border-t-0 p-3 code-font outline-none focus:border-sky-400 transition-all"
-                                    value={state.heroName}
-                                    placeholder="Type Name..."
-                                    onChange={(e) => {
-                                        setState({ ...state, heroName: e.target.value });
-                                        onLog(`hero.setName("${e.target.value}");`, "UPDATE");
-                                    }}
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs code-font text-green-400 flex items-center gap-2">
-                                    <Binary size={12} /> <T en="XP MULTIPLIER (double)" zh="经验倍率 (双精度浮点数)" />
-                                </label>
-                                <input
-                                    type="range" min="1" max="5" step="0.5"
-                                    className="w-full h-1 bg-slate-800 accent-green-500 rounded-lg appearance-none cursor-pointer"
-                                    value={state.xpRate}
-                                    onChange={(e) => {
-                                        setState({ ...state, xpRate: parseFloat(e.target.value) });
-                                        onLog(`hero.xpRate = ${e.target.value};`, "UPDATE");
-                                    }}
-                                />
-                                <div className="text-right text-[10px] code-font text-green-500">{state.xpRate.toFixed(1)}x</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <MemorySector address="0x0041" label="hero_name" type="String" value={state.heroName} color="#0ea5e9" />
-                        <MemorySector address="0x0042" label="xp_rate" type="double" value={state.xpRate} color="#22c55e" />
-                        <MemorySector address="0x12FA" label="data_pkg" type="Object" value="HeroInstance" color="#8b5cf6" />
-                        <MemorySector address="0x12FB" label="ref_count" type="int" value="64" color="#eab308" />
-                    </div>
-                </div>
-            );
-        };
-
-        // --- Scene 2: Matrix Calculation (Math, Advanced Strings) ---
-        const SceneMath = ({ onLog, state, setState }) => {
-            const finalPower = useMemo(() => (state.level * 15 * state.xpRate).toFixed(0), [state.level, state.xpRate]);
-            const fullTitle = useMemo(() => `LV.${state.level} ${state.heroName}`, [state.level, state.heroName]);
-
-            return (
-                <div className="flex flex-col gap-12 h-full justify-center">
-                    <div className="text-center space-y-4">
-                        <h2 className="text-5xl font-black text-white italic">POWER_CALC</h2>
-                        <p className="text-slate-400 text-sm">
-                            <T en="Master operator precedence and expression evaluation. Watch formulas compute step-by-step." zh="掌握运算符优先级与表达式求值。观察公式的逐步计算过程。" />
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-8 items-center bg-slate-900/50 p-8 rounded-3xl neon-border">
-                        {/* 输入项 */}
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
-                                <span className="text-xs code-font opacity-50"><T en="Level" zh="等级" /></span>
-                                <span className="text-xl font-bold text-sky-400">{state.level}</span>
-                                <div className="flex flex-col gap-1">
-                                    <button onClick={() => {
-                                        setState({ ...state, level: state.level + 1 });
-                                        onLog(`level++; // New: ${state.level + 1}`, "MATH");
-                                    }} className="bg-slate-800 p-1 rounded hover:bg-sky-600 transition-colors"><ChevronRight size={12} className="-rotate-90" /></button>
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
-                                <span className="text-xs code-font opacity-50"><T en="Base_ATK" zh="基础攻击力" /></span>
-                                <span className="text-xl font-bold text-green-400">15</span>
-                            </div>
-                        </div>
-
-                        {/* 公式层 */}
-                        <div className="flex flex-col items-center gap-4 py-8 relative">
-                            <div className="h-0.5 w-full bg-slate-800 absolute top-1/2 -translate-y-1/2 z-0"></div>
-                            <div className="z-10 bg-slate-900 px-4 py-2 rounded-full border border-slate-700 text-[10px] code-font">
-                                (level * 15) * xp_rate
-                            </div>
-                            <Code2 size={40} className="text-blue-500 opacity-20 animate-pulse" />
-                        </div>
-
-                        {/* 输出结果 */}
-                        <div className="space-y-4 text-center">
-                            <div className="p-6 rounded-2xl bg-sky-950/20 border-2 border-sky-500/50 shadow-[0_0_30px_rgba(14,165,233,0.3)]">
-                                <div className="text-[10px] code-font uppercase text-sky-500 mb-1 tracking-widest"><T en="Calculated Power" zh="计算战力" /></div>
-                                <div className="text-4xl font-black code-font">{finalPower}</div>
-                            </div>
-                            <div className="p-3 bg-slate-800/50 rounded-lg text-xs font-mono border border-slate-700">
-                                <span className="text-purple-400">String</span> fullTitle = <span className="text-yellow-400">"{fullTitle}"</span>;
-                            </div>
+                    <div className="flex flex-col items-center">
+                        <span className="text-xs uppercase font-bold text-slate-500">System Accuracy</span>
+                        <div className="flex gap-2">
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className={`w-4 h-4 rounded-full transition-colors ${i < score ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-slate-300'}`}></div>
+                            ))}
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- Scene 3: Instruction Matrix (Boolean, Advanced Conditionals) ---
-        const SceneLogic = ({ onLog }) => {
-            const [params, setParams] = useState({
-                hp: 15,
-                hasShield: false,
-                isDay: true,
-                energy: 80
-            });
+        // --- Scene 4: Stream Scanner (Loops) ---
+        const SceneScanner = ({ onComplete }) => {
+            const [selectedCond, setSelectedCond] = useState('');
+            const [loopIndex, setLoopIndex] = useState(-1);
+            const [isRunning, setIsRunning] = useState(false);
+            const [score, setScore] = useState(0);
 
-            const attackValid = useMemo(() => {
-                // 复合逻辑: (hp < 20 || hasShield) && energy > 50
-                return (params.hp < 20 || params.hasShield) && params.energy > 50;
-            }, [params]);
+            const orders = useMemo(() => [
+                { id: 201, type: "Regular", price: 15 },
+                { id: 202, type: "VIP", price: 25 },
+                { id: 203, type: "Regular", price: 18 },
+                { id: 204, type: "VIP", price: 30 },
+                { id: 205, type: "Regular", price: 12 },
+            ], []);
 
-            return (
-                <div className="flex flex-col gap-12 h-full justify-center">
-                    <div className="text-center">
-                        <h2 className="text-5xl font-black italic">LOGIC_GATE</h2>
-                        <p className="text-slate-400 mt-2 italic font-mono text-sm">(hp &lt; 20 || hasShield) && energy &gt; 50</p>
-                    </div>
+            const runScanner = () => {
+                if (selectedCond !== 'VIP') {
+                    // Quick fail
+                    alert("Logic Error: You are not filtering VIP orders!");
+                    return;
+                }
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center h-[400px]">
-                        {/* 参数控制 */}
-                        <div className="space-y-6">
-                            <div className="glass-panel p-6 rounded-2xl space-y-6">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-xs code-font">
-                                        <span className="text-red-400"><T en="Int HP (Vitality)" zh="整型 血量 (生命力)" /></span>
-                                        <span>{params.hp}</span>
-                                    </div>
-                                    <input type="range" min="0" max="100" value={params.hp} onChange={e => setParams({ ...params, hp: parseInt(e.target.value) })} className="w-full accent-red-500" />
-                                </div>
-                                <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
-                                    <span className="text-xs code-font text-blue-400"><T en="boolean hasShield" zh="布尔型 有护盾" /></span>
-                                    <button onClick={() => setParams({ ...params, hasShield: !params.hasShield })}
-                                        className={`w-12 h-6 rounded-full transition-all relative ${params.hasShield ? 'bg-blue-600' : 'bg-slate-800'}`}>
-                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${params.hasShield ? 'left-7' : 'left-1'}`}></div>
-                                    </button>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-xs code-font">
-                                        <span className="text-yellow-400"><T en="Int Energy" zh="整型 能量" /></span>
-                                        <span>{params.energy}</span>
-                                    </div>
-                                    <input type="range" min="0" max="100" value={params.energy} onChange={e => setParams({ ...params, energy: parseInt(e.target.value) })} className="w-full accent-yellow-500" />
-                                </div>
-                            </div>
-                        </div>
+                setIsRunning(true);
+                let count = 0;
+                setLoopIndex(-1);
 
-                        {/* 逻辑路径可视化 */}
-                        <div className="relative h-full border-l-2 border-slate-800 pl-12 flex flex-col justify-around">
-                            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-transparent via-slate-800 to-transparent"></div>
+                let i = 0;
+                const interval = setInterval(() => {
+                    setLoopIndex(i);
+                    const order = orders[i];
 
-                            {/* OR Gate */}
-                            <div className="flex items-center gap-4">
-                                <div className={`px-4 py-2 rounded border-2 transition-all ${params.hp < 20 || params.hasShield ? 'border-green-500 bg-green-500/10' : 'border-slate-800 bg-slate-900/50 opacity-40'}`}>
-                                    <T en="Sub-Logic A: (HP < 20 OR Shield)" zh="子逻辑 A: (血量 < 20 或 有护盾)" className="text-xs code-font" />
-                                </div>
-                                <span className={`text-xl font-black ${params.hp < 20 || params.hasShield ? 'text-green-500' : 'text-slate-800'}`}>{params.hp < 20 || params.hasShield ? 'TRUE' : 'FALSE'}</span>
-                            </div>
+                    if (order.type === 'VIP') {
+                        count++;
+                        setScore(count);
+                    }
 
-                            <div className="w-1 h-8 bg-slate-800 ml-10"></div>
-
-                            {/* Final Decision */}
-                            <div className={`p-8 rounded-3xl border-4 transition-all duration-700 flex flex-col items-center gap-4 ${attackValid ? 'border-sky-500 bg-sky-500/10 shadow-[0_0_50px_rgba(14,165,233,0.3)]' : 'border-slate-800 bg-slate-900/50'}`}>
-                                <Zap size={48} className={attackValid ? 'text-sky-400 animate-pulse' : 'text-slate-800'} />
-                                <div className="text-center">
-                                    <div className="text-[10px] code-font opacity-40"><T en="IF ACTION_ALLOWED" zh="如果 允许行动" /></div>
-                                    <div className={`text-2xl font-black italic ${attackValid ? 'text-white' : 'text-slate-700'}`}>
-                                        {attackValid ? <T en="EXECUTE_OVERDRIVE" zh="执行超载" /> : <T en="ACCESS_DENIED" zh="访问拒绝" />}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- Scene 4: Array Archiving (Lists, Filtering, Objects) ---
-        const SceneList = ({ onLog }) => {
-            const [loot, setLoot] = useState([
-                { id: 101, name: "Ion Blade", type: "Weapon", rarity: 4 },
-                { id: 102, name: "Med-Kit", type: "Utility", rarity: 1 },
-                { id: 103, name: "Flux Cap", type: "Utility", rarity: 3 },
-                { id: 104, name: "Railgun", type: "Weapon", rarity: 5 }
-            ]);
-            const [filterBy, setFilterBy] = useState("All");
-
-            const filteredLoot = loot.filter(item => filterBy === "All" || item.type === filterBy);
+                    i++;
+                    if (i >= orders.length) {
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            setLoopIndex(-1);
+                            setIsRunning(false);
+                            onComplete();
+                        }, 1000);
+                    }
+                }, 800);
+            };
 
             return (
-                <div className="flex flex-col gap-8 h-full justify-center">
+                <div className="flex flex-col gap-10 items-center h-full justify-center max-w-4xl mx-auto">
                     <div className="text-center space-y-2">
-                        <h2 className="text-5xl font-black italic tracking-tighter">INVENTORY_SYS</h2>
-                        <p className="text-slate-400 text-sm">
-                            <T en="ArrayList operations, for-each loops, and object property access." zh="ArrayList 操作、for-each 循环与对象属性访问。" />
-                        </p>
-                        <p className="text-slate-500 italic font-mono text-xs">
-                            <T en="for (Item i : loot) { if (i.type.equals(filter)) {...} }" zh="for (Item i : loot) { if (i.type.equals(筛选条件)) {...} }" />
-                        </p>
+                        <h2 className="text-4xl font-black text-slate-900">VIP Scanner</h2>
+                        <p className="text-slate-600 text-xl font-bold">Write a loop to promote <span className="text-amber-600 bg-amber-100 px-2 rounded">VIP</span> orders only.</p>
                     </div>
 
-                    <div className="flex gap-4 self-center bg-slate-950 p-2 rounded-2xl border border-slate-800">
-                        {["All", "Weapon", "Utility"].map(f => (
-                            <button key={f} onClick={() => setFilterBy(f)} className={`px-6 py-2 rounded-xl text-xs font-bold transition-all ${filterBy === f ? 'bg-sky-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
-                                {f.toUpperCase()}
-                            </button>
+                    <div className="w-full flex justify-center gap-6 py-8">
+                        {orders.map((order, i) => (
+                            <motion.div
+                                key={order.id}
+                                animate={{
+                                    scale: loopIndex === i ? 1.1 : 1,
+                                    y: loopIndex === i ? -15 : 0,
+                                    borderColor: order.type === 'VIP' && loopIndex >= i ? '#f59e0b' : '#e2e8f0',
+                                    boxShadow: loopIndex === i ? '0 15px 30px rgba(0,0,0,0.1)' : 'none'
+                                }}
+                                className={`w-36 h-48 p-4 rounded-xl border-4 bg-white flex flex-col justify-between items-center transition-colors duration-300
+                                ${order.type === 'VIP' ? 'bg-amber-50' : ''} ${loopIndex === i ? 'ring-4 ring-blue-200' : ''}`}
+                            >
+                                <div className="text-xs text-slate-400 font-mono font-bold">#{order.id}</div>
+                                <div className={`font-black text-2xl ${order.type === 'VIP' ? 'text-amber-600' : 'text-slate-600'}`}>{order.type}</div>
+                                {order.type === 'VIP' && loopIndex === i && (
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-amber-500">
+                                        <CheckCircle2 size={40} />
+                                    </motion.div>
+                                )}
+                            </motion.div>
                         ))}
                     </div>
 
-                    <div className="grid grid-cols-4 gap-4 h-[300px]">
-                        <AnimatePresence mode='popLayout'>
-                            {filteredLoot.map((item, idx) => (
-                                <motion.div
-                                    key={item.id}
-                                    layout
-                                    initial={{ opacity: 0, scale: 0.8, y: 50 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.5, y: -50 }}
-                                    className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between relative group overflow-hidden"
+                    {/* Code Visualizer */}
+                    <div className="w-full max-w-lg bg-slate-900 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
+                        <div className="font-mono text-base md:text-lg text-slate-300 space-y-4 relative z-10">
+                            <div className={loopIndex === -1 ? 'opacity-70' : 'text-blue-400 font-bold'}>for (int i=0; i&lt;queue.size(); i++) {'{'}</div>
+                            <div className={`pl-6 ${loopIndex >= 0 ? 'text-white' : 'opacity-70'}`}>Order o = queue.get(i);</div>
+
+                            {/* Interactive Line */}
+                            <div className="pl-6 flex items-center gap-2 flex-wrap">
+                                <span className="text-purple-400">if</span>
+                                <span>(o.type == </span>
+                                <select
+                                    className="bg-slate-800 border border-amber-500 rounded px-2 py-1 text-amber-500 font-bold outline-none"
+                                    value={selectedCond}
+                                    onChange={e => setSelectedCond(e.target.value)}
                                 >
-                                    <div className="absolute top-0 right-0 p-2 text-[8px] code-font text-slate-700">INDEX_{idx}</div>
-                                    <div className="space-y-1">
-                                        <div className="text-xs uppercase text-sky-400 font-bold tracking-widest">{item.type}</div>
-                                        <div className="text-lg font-black">{item.name}</div>
-                                    </div>
+                                    <option value="">???</option>
+                                    <option value="VIP">"VIP"</option>
+                                    <option value="Regular">"Regular"</option>
+                                </select>
+                                <span>)</span>
+                            </div>
 
-                                    <div className="flex gap-1">
-                                        {Array.from({ length: 5 }).map((_, i) => (
-                                            <div key={i} className={`w-2 h-2 rounded-full ${i < item.rarity ? 'bg-yellow-500 shadow-[0_0_5px_rgba(234,179,8,0.5)]' : 'bg-slate-800'}`}></div>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                    </div>
+                            <div className="pl-12 opacity-70 flex items-center gap-2">
+                                <span className="text-green-500">promote(o);</span>
+                            </div>
 
-                    <div className="p-4 bg-sky-950/20 border-l-4 border-sky-500 rounded-r-xl max-w-xl self-center flex items-center gap-4">
-                        <Layers size={32} className="text-sky-500" />
-                        <div className="text-xs text-sky-200">
-                            <T en="Loop Visualization: " zh="循环可视化: " />
-                            <span className="code-font font-bold">for(Item i : loot) if(i.type.equals("{filterBy}")) ...</span><br />
-                            <T en={`Items matching "${filterBy}" are moved to display buffer.`} zh={`满足 "${filterBy}" 条件的物品被移入显示缓存。`} />
+                            <div className={loopIndex === -1 ? 'opacity-70' : 'text-blue-400'}>{'}'}</div>
                         </div>
                     </div>
+
+                    <Button onClick={runScanner} disabled={isRunning} className="w-64 text-lg">
+                        {isRunning ? "Scanning..." : "Execute Loop"}
+                    </Button>
                 </div>
             );
         };
 
-
-        // --- 主应用程序 ---
+        // --- Main App ---
         const App = () => {
-            const [step, setStep] = useState(0);
-            const [logs, setLogs] = useState([]);
-            const [lang, setLang] = useState('en'); // 'en' or 'zh'
-            const [state, setState] = useState({
-                heroName: "ARTHUR_VX",
-                level: 5,
-                xpRate: 1.5,
-                isActive: true
-            });
+            const [currentScene, setCurrentScene] = useState(0);
+            const [showSuccess, setShowSuccess] = useState(false);
 
-            const addLog = (text, type = "SYS") => {
-                const now = new Date().toLocaleTimeString('en-GB', { hour12: false });
-                setLogs(prev => [{ text, type, time: now }, ...prev].slice(0, 20));
-            };
-
-            const steps = [
-                { title: "Core Init", component: <SceneInit onLog={addLog} state={state} setState={setState} /> },
-                { title: "Power Calc", component: <SceneMath onLog={addLog} state={state} setState={setState} /> },
-                { title: "Logic Gate", component: <SceneLogic onLog={addLog} /> },
-                { title: "Inventory", component: <SceneList onLog={addLog} /> },
+            const scenes = [
+                { title: "Mixer", component: <SceneMixer onComplete={() => setShowSuccess(true)} /> },
+                { title: "Pricing", component: <ScenePricing onComplete={() => setShowSuccess(true)} /> },
+                { title: "Quality", component: <SceneQuality onComplete={() => setShowSuccess(true)} /> },
+                { title: "Scanner", component: <SceneScanner onComplete={() => setShowSuccess(true)} /> },
             ];
 
+            const nextScene = () => {
+                setShowSuccess(false);
+                if (currentScene < scenes.length - 1) {
+                    setCurrentScene(prev => prev + 1);
+                }
+            };
+
+            const prevScene = () => {
+                setShowSuccess(false);
+                if (currentScene > 0) {
+                    setCurrentScene(prev => prev - 1);
+                }
+            };
+
             return (
-                <LanguageContext.Provider value={{ lang, setLang }}>
-                    <div className="flex h-screen w-full relative">
-                        {/* 背景装饰 */}
-                        <div className="fixed inset-0 z-0 pointer-events-none opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
-
-                        {/* 左侧主要区域 */}
-                        <div className="flex-1 flex flex-col p-8 z-10 relative">
-                            {/* 顶部状态栏 */}
-                            <div className="flex justify-between items-center mb-12">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-sky-600 rounded-2xl shadow-lg shadow-sky-900/50">
-                                        <Cpu className="text-white" size={24} />
-                                    </div>
-                                    <div>
-                                        <h1 className="text-xl font-black tracking-tighter uppercase italic">CyberHero_OS <span className="text-sky-500 font-light">v1.2.9</span></h1>
-                                        <div className="flex gap-1 text-[8px] code-font text-slate-500">
-                                            <span className="animate-pulse text-green-500">● <T en="STABLE_CONNECTION" zh="稳定连接" /></span> | <T en="CORE_TEMP_36C" zh="核心温度36摄氏度" /> | <T en="PID_8842" zh="进程ID 8842" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 items-center">
-                                    {/* 语言切换按钮 */}
-                                    <button
-                                        onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')}
-                                        className="mr-4 px-3 py-1 rounded border border-slate-700 hover:border-sky-500 bg-slate-900 text-[10px] code-font text-slate-400 hover:text-white transition-colors flex items-center gap-2"
-                                    >
-                                        <div className="flex gap-1">
-                                            <span className={lang === 'en' ? 'text-sky-400 font-bold' : 'text-slate-600'}>EN</span>
-                                            <span className="text-slate-700">/</span>
-                                            <span className={lang === 'zh' ? 'text-sky-400 font-bold' : 'text-slate-600'}>CN</span>
-                                        </div>
-                                    </button>
-
-                                    {steps.map((s, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => setStep(i)}
-                                            className={`px-4 py-2 rounded-full text-[10px] code-font font-bold transition-all border ${step === i ? 'bg-sky-600 border-sky-400 text-white shadow-[0_0_15px_rgba(14,165,233,0.5)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'}`}
-                                        >
-                                            [SCENE_0{i + 1}]
-                                        </button>
-                                    ))}
-                                </div>
+                <div className="flex flex-col h-screen w-full max-w-6xl mx-auto shadow-2xl bg-slate-50 relative overflow-hidden">
+                    {/* Header */}
+                    <header className="p-6 bg-white border-b border-slate-100 flex justify-between items-center z-10 relative">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                                <Coffee size={24} />
                             </div>
-
-                            {/* 核心显示区 */}
-                            <div className="flex-1 overflow-hidden relative">
-                                <AnimatePresence mode="wait">
-                                    <motion.div
-                                        key={step}
-                                        initial={{ opacity: 0, x: 50, scale: 0.95 }}
-                                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                                        exit={{ opacity: 0, x: -50, scale: 0.95 }}
-                                        transition={{ duration: 0.5, ease: "circOut" }}
-                                        className="h-full w-full"
-                                    >
-                                        {steps[step].component}
-                                    </motion.div>
-                                </AnimatePresence>
-                            </div>
-
-                            {/* 底部导航 */}
-                            <div className="mt-8 flex justify-between items-center border-t border-slate-800 pt-8">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] code-font text-slate-500 uppercase tracking-widest leading-none"><T en="Knowledge Module" zh="知识模块" /></span>
-                                    <span className="text-lg font-black italic tracking-tighter uppercase">{steps[step].title}</span>
-                                </div>
-                                <div className="flex gap-4">
-                                    <button
-                                        onClick={() => setStep(prev => Math.max(0, prev - 1))}
-                                        disabled={step === 0}
-                                        className="px-6 py-3 rounded-xl bg-slate-900 text-slate-500 border border-slate-800 disabled:opacity-20 hover:text-white transition-all text-xs font-bold"
-                                    >
-                                        <T en="PREV_SCENE" zh="上一场景" />
-                                    </button>
-                                    <button
-                                        onClick={() => setStep(prev => Math.min(steps.length - 1, prev + 1))}
-                                        disabled={step === steps.length - 1}
-                                        className="px-10 py-3 rounded-xl bg-sky-600 text-white font-black italic shadow-lg shadow-sky-900/50 hover:bg-sky-500 transition-all flex items-center gap-2 text-xs"
-                                    >
-                                        <T en="NEXT_UNIT" zh="下一单元" /> <ChevronRight size={18} />
-                                    </button>
-                                </div>
+                            <div>
+                                <h1 className="text-xl font-black text-slate-800 tracking-tight">Smart Boba Manager</h1>
+                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">AP CSP Logic Training</p>
                             </div>
                         </div>
 
-                        {/* 右侧控制台面板 */}
-                        <div className="w-[400px] bg-slate-950/90 backdrop-blur-3xl border-l-2 border-slate-900 flex flex-col p-6 z-20">
-                            <div className="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
-                                <Terminal size={20} className="text-sky-500" />
-                                <h3 className="text-sm font-black italic uppercase"><T en="Java_Kernel_Log" zh="Java内核日志" /></h3>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto space-y-4 font-mono text-[11px]">
-                                {logs.map((log, i) => (
-                                    <motion.div
-                                        key={i}
-                                        initial={{ x: 20, opacity: 0 }}
-                                        animate={{ x: 0, opacity: 1 }}
-                                        className="relative pl-4 border-l-2 border-slate-800 group"
-                                    >
-                                        <div className="flex justify-between text-[8px] text-slate-600 mb-1">
-                                            <span>{log.type}</span>
-                                            <span>{log.time}</span>
-                                        </div>
-                                        <div className={`transition-colors ${log.type === 'UPDATE' ? 'text-green-500' : log.type === 'MATH' ? 'text-sky-400' : 'text-slate-300'}`}>
-                                            <span className="text-slate-700 mr-2">&gt;</span>
-                                            {log.text}
-                                        </div>
-                                    </motion.div>
-                                ))}
-                                {logs.length === 0 && (
-                                    <div className="h-full flex flex-col items-center justify-center text-slate-700 opacity-30 text-center uppercase code-font">
-                                        <Activity size={40} className="mb-4" />
-                                        <T en="No Kernel Events Hooked" zh="未捕获到内核事件" />
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="mt-6 pt-4 border-t border-slate-800">
-                                <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 text-[10px] code-font text-slate-500">
-                                    <p className="mb-2 leading-relaxed">
-                                        <T
-                                            en="Standardized on AP-CSA (Java). Demonstrating strong typing and JVM memory management logic."
-                                            zh="基于 AP-CSA (Java) 标准。展示强类型转换与 JVM 内存管理初步逻辑。"
-                                        />
-                                    </p>
-                                    <div className="flex gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                        <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                                    </div>
-                                </div>
-                            </div>
+                        <div className="flex gap-2">
+                            {scenes.map((s, i) => (
+                                <div key={i} className={`w-3 h-3 rounded-full transition-all ${i === currentScene ? 'bg-amber-500 scale-125' : i < currentScene ? 'bg-green-400' : 'bg-slate-200'}`}></div>
+                            ))}
                         </div>
-                    </div>
-                </LanguageContext.Provider>
+                    </header>
+
+                    {/* Main Stage */}
+                    <main className="flex-1 relative overflow-hidden">
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={currentScene}
+                                initial={{ opacity: 0, x: 50 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -50 }}
+                                transition={{ duration: 0.5, ease: "circOut" }}
+                                className="h-full w-full p-8"
+                            >
+                                {scenes[currentScene].component}
+                            </motion.div>
+                        </AnimatePresence>
+                    </main>
+
+                    {/* Footer Nav for Previous */}
+                    <footer className="p-4 bg-white/50 border-t border-slate-100 flex justify-between items-center z-10 backdrop-blur-sm">
+                        <button
+                            onClick={prevScene}
+                            disabled={currentScene === 0}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-slate-600 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronLeft size={20} /> Back
+                        </button>
+                        <div className="text-xs font-mono text-slate-400">
+                            Level {currentScene + 1} / {scenes.length}
+                        </div>
+                        <div className="w-20"></div> {/* Spacer for symmetry */}
+                    </footer>
+
+                    {/* Success Modal Overlay */}
+                    <SuccessModal
+                        show={showSuccess}
+                        message="Module logic validated successfully."
+                        onNext={nextScene}
+                    />
+                </div>
             );
         };
 
