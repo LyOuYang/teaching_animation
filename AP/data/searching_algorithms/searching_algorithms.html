@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算法指挥官：查找与过程调用</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+        }
+    }
+    </script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.4/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;700&display=swap');
+        body { font-family: 'Outfit', sans-serif; height: 100vh; margin:0; overflow: hidden; }
+        .code-font { font-family: 'JetBrains Mono', monospace; }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100">
+    <div id="root" class="h-full w-full"></div>
+
+    <script type="text/babel" data-presets="react" data-type="module">
+        import React, { useState, useEffect, useMemo, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            ChevronRight, ChevronLeft, Play, RotateCcw, Box, 
+            Search, Zap, List, Filter, Code2, Coffee, 
+            Settings2, AlertCircle, CheckCircle2, Terminal
+        } from 'lucide-react';
+
+        // --- Basic Components ---
+        const Card = ({ children, className = "" }) => (
+            <div className={`glass-panel p-6 rounded-3xl border border-slate-800 ${className}`}>
+                {children}
+            </div>
+        );
+
+        // --- Scenes ---
+        const BreakfastRobo = () => {
+            const [isExtracted, setIsExtracted] = useState(false);
+            const [eggTime, setEggTime] = useState(3);
+            const [isFlashing, setIsFlashing] = useState(false);
+
+            useEffect(() => {
+                if (eggTime) {
+                    setIsFlashing(true);
+                    const timer = setTimeout(() => setIsFlashing(false), 300);
+                    return () => clearTimeout(timer);
+                }
+            }, [eggTime]);
+
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-6xl fade-in mx-auto">
+                    <Card>
+                        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                            <Terminal className="text-blue-400" size={24} />
+                            机器人指令编辑器
+                        </h2>
+                        <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 min-h-[340px] relative overflow-hidden text-left">
+                            <div className="code-font text-sm md:text-base space-y-2">
+                                {!isExtracted ? (
+                                    <React.Fragment>
+                                        <div className="text-slate-500 mb-4">// 重复 3 遍相同的代码 (Redundant)</div>
+                                        {[1, 2, 3].map(i => (
+                                            <div key={i} className="space-y-1 mb-4 border-l-2 border-slate-800 pl-4 py-1">
+                                                <div className="flex items-center gap-2 font-bold">
+                                                    <span className="text-orange-400">boil_egg</span>
+                                                    <span className="text-slate-500">(</span>
+                                                    <span className={`px-1 rounded transition-colors ${isFlashing ? 'bg-blue-500 text-white' : 'text-blue-300'}`}>
+                                                        {String(eggTime)}
+                                                    </span>
+                                                    <span className="text-slate-500">)</span>
+                                                </div>
+                                                <div className="text-blue-200">pour_milk()</div>
+                                                <div className="text-blue-200">toast_bread()</div>
+                                            </div>
+                                        ))}
+                                    </React.Fragment>
+                                ) : (
+                                    <React.Fragment>
+                                        <div className="text-green-500/80 mb-4 italic">// 定义一个过程 (Define Procedure)</div>
+                                        <div className="bg-blue-900/20 -mx-6 px-6 py-4 border-y border-blue-500/20 mb-6">
+                                            <span className="text-purple-400 font-bold">PROCEDURE</span>
+                                            <span className="text-white ml-2">make_breakfast</span>
+                                            <span className="text-slate-400">(</span>
+                                            <span className="text-blue-300 italic">time</span>
+                                            <span className="text-slate-400">) {`{`}</span>
+                                            <div className="pl-6 mt-1 text-slate-300 opacity-60">boil_egg(time)</div>
+                                            <div className="pl-6 text-slate-300 opacity-60">pour_milk()</div>
+                                            <div className="pl-6 text-slate-300 opacity-60">toast_bread()</div>
+                                            <div className="text-slate-400 font-bold">{`}`}</div>
+                                        </div>
+                                        <div className="text-slate-500 mb-4">// 只需要调用过程名 (Call)</div>
+                                        {[1, 2, 3].map(i => (
+                                            <div key={i} className="flex items-center gap-2 pl-4 py-1 text-lg font-bold">
+                                                <span className="text-white">make_breakfast</span>
+                                                <span className="text-slate-500">(</span>
+                                                <span className={`px-1 rounded transition-colors ${isFlashing ? 'bg-blue-500 text-white' : 'text-blue-300'}`}>
+                                                    {String(eggTime)}
+                                                </span>
+                                                <span className="text-slate-500">)</span>
+                                            </div>
+                                        ))}
+                                    </React.Fragment>
+                                )}
+                            </div>
+                        </div>
+                        <div className="mt-6 flex flex-wrap gap-4 items-center">
+                            <div className="flex-1 min-w-[200px] flex items-center gap-4 bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">时间参数</span>
+                                <input type="range" min="1" max="10" value={eggTime} onChange={(e) => setEggTime(parseInt(e.target.value))} className="flex-1 accent-blue-500" />
+                                <span className="code-font text-blue-400 font-bold w-4">{String(eggTime)}</span>
+                            </div>
+                            <button onClick={() => setIsExtracted(!isExtracted)} className={`px-6 py-4 rounded-2xl font-bold flex items-center gap-2 transition-all shadow-lg text-white ${isExtracted ? 'bg-slate-700 hover:bg-slate-600' : 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/20'}`}>
+                                {isExtracted ? <RotateCcw size={20} /> : <Box size={20} />}
+                                {isExtracted ? "撤销封装" : "封装成 Procedure"}
+                            </button>
+                        </div>
+                    </Card>
+
+                    <Card className="flex flex-col items-center justify-center text-center">
+                        <div className="relative mb-8">
+                            <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full" />
+                            <div className="w-32 h-32 bg-slate-800 rounded-2xl border-2 border-slate-700 flex items-center justify-center relative z-10 shadow-2xl">
+                                <Coffee size={64} className="text-blue-400" />
+                            </div>
+                        </div>
+                        <h3 className="text-2xl font-bold mb-6 text-white text-left italic">封装的好处：抽象与简洁</h3>
+                        <div className="space-y-6 text-left w-full">
+                            <div className={`p-5 rounded-2xl border transition-all duration-500 flex items-start gap-4 ${!isExtracted ? 'bg-blue-500/10 border-blue-500/30' : 'bg-slate-800/30 border-slate-700 opacity-50'}`}>
+                                <AlertCircle size={24} className="text-blue-400 mt-1 shrink-0" />
+                                <div>
+                                    <h4 className="font-bold text-lg mb-1 text-white">重复的痛苦 (Pain)</h4>
+                                    <p className="text-slate-400 text-sm leading-relaxed">没有封装时，同样的逻辑写了 3 遍。每次修改参数，你都要手动改三个地方，效率低且容易出错。</p>
+                                </div>
+                            </div>
+                            <div className={`p-5 rounded-2xl border transition-all duration-500 flex items-start gap-4 ${isExtracted ? 'bg-purple-500/10 border-purple-500/30' : 'bg-slate-800/30 border-slate-700 opacity-50'}`}>
+                                <CheckCircle2 size={24} className="text-purple-400 mt-1 shrink-0" />
+                                <div>
+                                    <h4 className="font-bold text-lg mb-1 text-white">封装的力量 (Power)</h4>
+                                    <p className="text-slate-400 text-sm leading-relaxed">封装后，你只需修改一处参数，所有调用点都会同步更新。这隐藏了细节，让你能掌控全局。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            );
+        };
+
+        const MessyShelfSearch = () => {
+            const [shelf, setShelf] = useState(['🍎', '🍌', '🍇', '🍒', '🍓', '🥝', '🥭', '🍍', '🥑', '🥦']);
+            const [target, setTarget] = useState('🍒');
+            const [currentIndex, setCurrentIndex] = useState(-1);
+            const [status, setStatus] = useState("idle");
+
+            const init = () => {
+                const items = ['🍎', '🍌', '🍇', '🍒', '🍓', '🥝', '🥭', '🍍', '🥑', '🥦', '🌽', '🥗'];
+                const newShelf = [...items].sort(() => Math.random() - 0.5).slice(0, 10);
+                const pick = newShelf[Math.floor(Math.random() * newShelf.length)];
+                setShelf(newShelf);
+                setTarget(pick);
+                setCurrentIndex(-1);
+                setStatus("idle");
+            };
+
+            const runSearch = async () => {
+                setStatus("searching");
+                for (let i = 0; i < shelf.length; i++) {
+                    setCurrentIndex(i);
+                    await new Promise(r => setTimeout(r, 600));
+                    if (shelf[i] === target) {
+                        setStatus("found");
+                        return;
+                    }
+                }
+                setStatus("not_found");
+            };
+
+            return (
+                <div className="w-full max-w-5xl flex flex-col gap-8 fade-in mx-auto px-4">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold mb-3 text-white">线性查找：地毯式搜索</h2>
+                        <p className="text-slate-400 max-w-2xl mx-auto">当数据乱序时，只能从第一个开始，逐一检查目标。</p>
+                    </div>
+
+                    <Card className="relative overflow-hidden">
+                        <div className="flex justify-between items-center mb-10">
+                            <div className="flex items-center gap-4">
+                                <div className="text-xs font-bold text-slate-500 uppercase tracking-widest text-left">目标:</div>
+                                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-4xl shadow-lg ring-4 ring-blue-900/50">{String(target)}</div>
+                            </div>
+                            <div className="flex gap-4">
+                                <button onClick={init} disabled={status === "searching"} className="p-3 bg-slate-800 rounded-xl hover:bg-slate-700 disabled:opacity-30 text-white"><RotateCcw size={24} /></button>
+                                <button onClick={runSearch} disabled={status !== "idle"} className="px-8 py-3 bg-blue-600 rounded-xl hover:bg-blue-500 font-bold flex items-center gap-2 disabled:opacity-30 text-white"><Play size={20} /> 开始查找</button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-5 md:grid-cols-10 gap-3">
+                            {shelf.map((item, idx) => (
+                                <div key={idx} className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center text-3xl transition-all duration-300 relative ${currentIndex === idx ? 'bg-blue-600/20 border-blue-500 scale-110 z-10' : (status === "found" && item === target ? 'bg-green-600/20 border-green-500 scale-110' : 'bg-slate-800/80 border-slate-700')}`}>
+                                    {String(item)}
+                                    <div className="absolute -bottom-6 text-[10px] font-bold text-slate-500 code-font">IDX:{String(idx)}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+
+                    <div className="grid grid-cols-3 gap-6">
+                        <div className="glass-panel p-4 rounded-2xl border border-slate-800 text-center"><div className="text-[10px] font-bold text-slate-500 mb-1">复杂度</div><div className="text-xl font-bold text-orange-400 font-mono">O(N)</div></div>
+                        <div className="glass-panel p-4 rounded-2xl border border-slate-800 text-center"><div className="text-[10px] font-bold text-slate-500 mb-1 text-left">平均步数</div><div className="text-xl font-bold text-blue-400 font-mono">N/2</div></div>
+                        <div className="glass-panel p-4 rounded-2xl border border-slate-800 text-center"><div className="text-[10px] font-bold text-slate-500 mb-1 text-left">状态</div><div className={`text-xl font-bold font-mono ${status === 'found' ? 'text-green-500' : 'text-slate-300'}`}>{String(status).toUpperCase()}</div></div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SearchBattle = () => {
+            const [size, setSize] = useState(31);
+            const [target, setTarget] = useState(15);
+            const [linearIdx, setLinearIdx] = useState(-1);
+            const [binaryRange, setBinaryRange] = useState({ low: 0, high: 30, mid: -1 });
+            const [results, setResults] = useState({ linear: 0, binary: 0 });
+            const [status, setStatus] = useState("ready");
+            const isSearching = useRef(false);
+
+            const array = useMemo(() => Array.from({length: size}, (_, i) => i + 1), [size]);
+
+            const resetAll = () => {
+                setTarget(Math.floor(Math.random() * size) + 1);
+                setLinearIdx(-1);
+                setBinaryRange({ low: 0, high: size - 1, mid: -1 });
+                setResults({ linear: 0, binary: 0 });
+                setStatus("ready");
+                isSearching.current = false;
+            };
+
+            const startBattle = async () => {
+                if (isSearching.current) return;
+                isSearching.current = true;
+                setStatus("running");
+
+                let curL = 0, cL = 0, cH = size - 1, cM = -1;
+                let l_s = 0, b_s = 0, l_d = false, b_d = false;
+
+                while ((!l_d || !b_d) && isSearching.current) {
+                    if (!l_d) { 
+                        setLinearIdx(curL); 
+                        l_s++; 
+                        if (array[curL] === target) l_d = true; 
+                        else curL++; 
+                    }
+                    if (!b_d) { 
+                        cM = Math.floor((cL + cH) / 2); 
+                        setBinaryRange({ low: cL, high: cH, mid: cM }); 
+                        b_s++; 
+                        if (array[cM] === target) b_d = true; 
+                        else if (array[cM] < target) cL = cM + 1; 
+                        else cH = cM - 1; 
+                    }
+                    setResults({ linear: l_s, binary: b_s });
+                    await new Promise(r => setTimeout(r, 400));
+                }
+                setStatus("done");
+                isSearching.current = false;
+            };
+
+            return (
+                <div className="w-full max-w-6xl flex flex-col gap-6 fade-in mx-auto px-4">
+                    <div className="flex flex-col md:flex-row justify-between items-end gap-4">
+                        <div className="text-left">
+                            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent italic">效率之战：线性 vs 二分</h2>
+                            <p className="text-slate-400 mt-2 text-left">二分查找：每次排除一半的可能，效率质变。</p>
+                        </div>
+                        <div className="flex flex-wrap gap-4 items-center glass-panel px-6 py-4 rounded-2xl border border-slate-800">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase text-left">规模(N)</span>
+                                <div className="flex items-center gap-3">
+                                    <input type="range" min="10" max="63" value={size} onChange={(e) => setSize(parseInt(e.target.value))} disabled={status === "running"} className="accent-blue-500" />
+                                    <span className="code-font font-bold text-blue-400 w-8">{String(size)}</span>
+                                </div>
+                            </div>
+                            <div className="text-center px-4 border-l border-slate-800">
+                                <span className="block text-[10px] font-bold text-slate-500 uppercase text-left">目标</span>
+                                <span className="text-2xl font-bold code-font text-white">{String(target)}</span>
+                            </div>
+                            <button onClick={startBattle} disabled={status === "running" || status === "done"} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white disabled:opacity-20 flex items-center gap-2"><Zap size={18} /> 开战</button>
+                            <button onClick={resetAll} disabled={status === "running"} className="p-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-white"><RotateCcw size={18} /></button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-[360px]">
+                        <Card className="flex flex-col text-left">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold flex items-center gap-2"><List size={20} /> 线性查找</h3>
+                                <div className="text-2xl font-mono font-bold text-slate-300">步数: <span className="text-white">{String(results.linear)}</span></div>
+                            </div>
+                            <div className="flex-1 flex flex-wrap gap-1 content-start overflow-y-auto max-h-[240px]">
+                                {array.map((val, idx) => (
+                                    <div key={idx} className={`w-8 h-8 rounded-md flex items-center justify-center text-[10px] font-bold transition-all ${linearIdx === idx ? 'bg-blue-600' : (val === target && status === "done" ? 'bg-green-500' : 'bg-slate-800 opacity-40')}`}>{String(val)}</div>
+                                ))}
+                            </div>
+                        </Card>
+                        <Card className="flex flex-col border-2 border-blue-500/30 text-left">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold flex items-center gap-2 text-blue-400"><Search size={20} /> 二分查找</h3>
+                                <div className="text-2xl font-mono font-bold text-blue-400">步数: <span className="text-white">{String(results.binary)}</span></div>
+                            </div>
+                            <div className="flex-1 flex flex-wrap gap-1 content-start overflow-y-auto max-h-[240px]">
+                                {array.map((val, idx) => {
+                                    const out = idx < binaryRange.low || idx > binaryRange.high;
+                                    return <div key={idx} className={`w-8 h-8 rounded-md flex items-center justify-center text-[10px] font-bold transition-all ${binaryRange.mid === idx ? 'bg-blue-600 scale-125 z-10' : (val === target && status === "done" ? 'bg-green-500' : (out && results.binary > 0 ? 'opacity-10 scale-90' : 'bg-slate-800'))}`}>{String(val)}</div>;
+                                })}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [currentScene, setCurrentScene] = useState(0);
+            
+            const scenes = [
+                { id: 0, title: "1. 过程封装：机器人工坊", component: <BreakfastRobo /> },
+                { id: 1, title: "2. 线性查找：乱序货架", component: <MessyShelfSearch /> },
+                { id: 2, title: "3. 效率大站：二分魔法", component: <SearchBattle /> }
+            ];
+
+            return (
+                <div className="flex flex-col h-screen overflow-hidden bg-slate-950">
+                    <header className="px-8 py-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center z-10">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-600 rounded-lg">
+                                <Code2 size={24} className="text-white" />
+                            </div>
+                            <div className="text-left">
+                                <h1 className="text-xl font-bold tracking-tight text-white underline decoration-blue-500 underline-offset-4">算法指挥官：查找与过程</h1>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] leading-none mt-1">APCSP: Algorithms & Procedures</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            {scenes.map((_, i) => (
+                                <div key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i === currentScene ? 'bg-blue-500 w-12' : i < currentScene ? 'bg-slate-700 w-6' : 'bg-slate-800 w-6'}`} />
+                            ))}
+                        </div>
+                    </header>
+
+                    <main className="flex-1 relative overflow-auto flex items-center justify-center p-4">
+                        <div className="w-full">
+                            {scenes[currentScene].component}
+                        </div>
+                    </main>
+
+                    <footer className="px-8 py-6 bg-slate-900 border-t border-slate-800 flex justify-between items-center z-10 shadow-2xl">
+                        <button 
+                            onClick={() => setCurrentScene(prev => Math.max(0, prev - 1))}
+                            disabled={currentScene === 0}
+                            className="group flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all disabled:opacity-20 text-white"
+                        >
+                            <ChevronLeft size={20} />
+                            <span className="font-bold">上一步</span>
+                        </button>
+                        
+                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest hidden md:block">
+                            SCENE {String(currentScene + 1)} OF {String(scenes.length)}
+                        </div>
+
+                        <button 
+                            onClick={() => setCurrentScene(prev => Math.min(scenes.length - 1, prev + 1))}
+                            disabled={currentScene === scenes.length - 1}
+                            className="group flex items-center gap-2 px-8 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/20 transition-all disabled:opacity-20 text-white"
+                        >
+                            <span className="font-bold">下一步</span>
+                            <ChevronRight size={20} />
+                        </button>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
