@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>算法指挥官：查找与过程调用</title>
+    <title>校园搜寻中心：过程抽象与查找策略</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
     {
@@ -16,313 +16,1168 @@
     </script>
     <script src="https://unpkg.com/@babel/standalone@7.24.4/babel.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;700&display=swap');
-        body { font-family: 'Outfit', sans-serif; height: 100vh; margin:0; overflow: hidden; }
-        .code-font { font-family: 'JetBrains Mono', monospace; }
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+        :root {
+            --bg-top: #08121e;
+            --bg-mid: #0f2135;
+            --bg-bot: #050a11;
+            --panel: rgba(8, 18, 31, 0.78);
+            --panel-border: rgba(148, 163, 184, 0.16);
         }
-        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+            background:
+                radial-gradient(circle at top left, rgba(14, 165, 233, 0.24), transparent 28%),
+                radial-gradient(circle at top right, rgba(34, 197, 94, 0.16), transparent 24%),
+                linear-gradient(180deg, var(--bg-top), var(--bg-mid) 48%, var(--bg-bot));
+            color: #e2e8f0;
+            font-family: 'Space Grotesk', sans-serif;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+            background-size: 36px 36px;
+            mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.8), transparent);
+            pointer-events: none;
+        }
+
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-panel {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 18px 60px rgba(2, 6, 23, 0.28);
+        }
+
+        .scene-enter {
+            animation: sceneEnter 0.45s ease-out forwards;
+        }
+
+        @keyframes sceneEnter {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .control-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-radius: 0.95rem;
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            background: rgba(15, 23, 42, 0.9);
+            padding: 0.75rem 1rem;
+            color: #e2e8f0;
+            font-weight: 700;
+            transition: 0.2s ease;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            border-color: rgba(56, 189, 248, 0.3);
+            background: rgba(15, 23, 42, 1);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            border-color: rgba(56, 189, 248, 0.45);
+            box-shadow: 0 12px 30px rgba(2, 132, 199, 0.22);
+        }
+
+        .control-btn.active {
+            background: rgba(56, 189, 248, 0.18);
+            border-color: rgba(56, 189, 248, 0.42);
+            color: #7dd3fc;
+        }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100">
+<body>
     <div id="root" class="h-full w-full"></div>
 
     <script type="text/babel" data-presets="react" data-type="module">
-        import React, { useState, useEffect, useMemo, useRef } from 'react';
+        import React, { useEffect, useState } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { 
-            ChevronRight, ChevronLeft, Play, RotateCcw, Box, 
-            Search, Zap, List, Filter, Code2, Coffee, 
-            Settings2, AlertCircle, CheckCircle2, Terminal
+        import {
+            ChevronRight,
+            ChevronLeft,
+            Play,
+            RotateCcw,
+            Search,
+            Filter,
+            Code2,
+            CheckCircle2,
+            XCircle,
+            Terminal,
+            Box,
+            RefreshCw,
+            ArrowRight
         } from 'lucide-react';
 
-        // --- Basic Components ---
-        const Card = ({ children, className = "" }) => (
-            <div className={`glass-panel p-6 rounded-3xl border border-slate-800 ${className}`}>
+        const PROCEDURE_ROSTERS = [
+            {
+                id: 'attendance',
+                desk: 'Attendance Desk',
+                short: '点名台',
+                rosterName: 'advisoryRoster',
+                students: ['Ava Chen', 'Ben Ortiz', 'Lina Park', 'Mia Lopez', 'Noah Singh', 'Owen Cruz', 'Zoe Kim']
+            },
+            {
+                id: 'library',
+                desk: 'Library Desk',
+                short: '图书台',
+                rosterName: 'holdList',
+                students: ['Ava Chen', 'Ethan Wu', 'Kai Reed', 'Mia Lopez', 'Nora Patel', 'Owen Cruz', 'Zoe Kim']
+            },
+            {
+                id: 'bus',
+                desk: 'Bus Dispatch',
+                short: '校车台',
+                rosterName: 'routeSeven',
+                students: ['Aria Bell', 'Ben Ortiz', 'Cara Moss', 'Mia Lopez', 'Nora Patel', 'Priya Shah', 'Zoe Kim']
+            }
+        ];
+
+        const PROCEDURE_TARGETS = ['Ava Chen', 'Mia Lopez', 'Zoe Kim', 'Leo Grant'];
+
+        const LOST_CASES = [
+            {
+                title: 'Front Shelf Hit',
+                target: 'Blue Bottle',
+                hint: '目标在第一格，线性查找会很快结束。',
+                items: [
+                    { icon: '🧴', label: 'Blue Bottle' },
+                    { icon: '🧣', label: 'Red Scarf' },
+                    { icon: '📓', label: 'Green Notebook' },
+                    { icon: '🪪', label: 'Lunch Card' },
+                    { icon: '📘', label: 'Math Journal' },
+                    { icon: '💾', label: 'USB Drive' },
+                    { icon: '🎨', label: 'Sketchbook' },
+                    { icon: '🧃', label: 'Juice Box' }
+                ]
+            },
+            {
+                title: 'Last Shelf Hit',
+                target: 'Math Journal',
+                hint: '目标在最后一格，能明显看到最坏情况。',
+                items: [
+                    { icon: '🧣', label: 'Red Scarf' },
+                    { icon: '📓', label: 'Green Notebook' },
+                    { icon: '🧴', label: 'Blue Bottle' },
+                    { icon: '🪪', label: 'Lunch Card' },
+                    { icon: '💾', label: 'USB Drive' },
+                    { icon: '🎨', label: 'Sketchbook' },
+                    { icon: '🧃', label: 'Juice Box' },
+                    { icon: '📘', label: 'Math Journal' }
+                ]
+            },
+            {
+                title: 'Missing Item',
+                target: 'Headphones',
+                hint: '目标不存在，算法也必须正常收尾。',
+                items: [
+                    { icon: '🧣', label: 'Red Scarf' },
+                    { icon: '📓', label: 'Green Notebook' },
+                    { icon: '🧴', label: 'Blue Bottle' },
+                    { icon: '🪪', label: 'Lunch Card' },
+                    { icon: '📘', label: 'Math Journal' },
+                    { icon: '💾', label: 'USB Drive' },
+                    { icon: '🎨', label: 'Sketchbook' },
+                    { icon: '🧃', label: 'Juice Box' }
+                ]
+            }
+        ];
+
+        const SORT_FAIL_CASES = [
+            {
+                title: 'Case A',
+                target: 68,
+                list: [42, 7, 91, 13, 68, 24, 55]
+            },
+            {
+                title: 'Case B',
+                target: 49,
+                list: [60, 12, 87, 22, 33, 75, 49]
+            }
+        ];
+
+        const DISPATCH_CASES = [
+            {
+                title: 'Coach Jersey Bin',
+                prompt: 'PE 老师要在一堆 8 件乱序球衣里临时找 1 件，而且今天只查这一次。',
+                ordered: false,
+                size: 'small',
+                repeated: false,
+                strategy: 'Linear Search',
+                procedure: 'No',
+                whyStrategy: '数据乱序而且规模很小，线性查找最直接。',
+                whyProcedure: '这是一次性任务，不值得专门封装成过程。'
+            },
+            {
+                title: 'Library Hold Shelf',
+                prompt: '图书管理员每小时都要在一排短短的乱序预约书架上重复同样的查找步骤。',
+                ordered: false,
+                size: 'small',
+                repeated: true,
+                strategy: 'Linear Search',
+                procedure: 'Yes',
+                whyStrategy: '虽然重复很多次，但数据依旧乱序，线性查找最可靠。',
+                whyProcedure: '步骤会频繁重复，封装成 procedure 能统一修改和复用。'
+            },
+            {
+                title: 'Student ID Gateway',
+                prompt: '教务处每天要在已经排序好的 5000 个学生 ID 中做成百上千次查询。',
+                ordered: true,
+                size: 'large',
+                repeated: true,
+                strategy: 'Binary Search',
+                procedure: 'Yes',
+                whyStrategy: '数据有序且规模很大，二分查找能明显减少查找轮数。',
+                whyProcedure: '这是高频动作，最值得抽象成统一接口。'
+            },
+            {
+                title: 'Advisory Printout',
+                prompt: '辅导员拿着一张已经按字母排序的 12 人名单，课堂上只需做 1 次人工核对。',
+                ordered: true,
+                size: 'small',
+                repeated: false,
+                strategy: 'Linear Search',
+                procedure: 'No',
+                whyStrategy: '即使有序，规模很小且只查一次，直接线性扫描更简单。',
+                whyProcedure: '没有明显复用需求，不必为了抽象而抽象。'
+            }
+        ];
+
+        function linearSearchResult(list, target) {
+            for (let i = 0; i < list.length; i += 1) {
+                if (list[i] === target) {
+                    return { index: i, steps: i + 1 };
+                }
+            }
+            return { index: -1, steps: list.length };
+        }
+
+        function binarySearchSummary(list, target) {
+            let low = 0;
+            let high = list.length - 1;
+            let steps = 0;
+
+            while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                steps += 1;
+                if (list[mid] === target) {
+                    return { index: mid, steps };
+                }
+                if (list[mid] < target) {
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+
+            return { index: -1, steps };
+        }
+
+        function getBinaryConsoleTarget(size, caseIndex) {
+            if (caseIndex === 0) {
+                return { label: 'Near Start', value: 2 };
+            }
+            if (caseIndex === 1) {
+                return { label: 'Middle', value: Math.ceil(size / 2) };
+            }
+            if (caseIndex === 2) {
+                return { label: 'Near End', value: size - 1 };
+            }
+            return { label: 'Missing', value: size + 4 };
+        }
+
+        const Card = ({ children, className = '' }) => (
+            <div className={`glass-panel rounded-[28px] border p-6 ${className}`}>
                 {children}
             </div>
         );
 
-        // --- Scenes ---
-        const BreakfastRobo = () => {
+        const SectionEyebrow = ({ children }) => (
+            <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">{children}</div>
+        );
+
+        const MetricCard = ({ label, value, tone = 'sky', note }) => (
+            <div className="rounded-3xl border border-slate-800 bg-slate-950/60 px-5 py-4">
+                <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">{label}</div>
+                <div className="mt-2 text-2xl font-bold text-white">{value}</div>
+                {note ? <div className="mt-1 text-xs text-slate-400">{note}</div> : null}
+            </div>
+        );
+
+        const ReferenceCard = ({ title, lines, note }) => (
+            <Card>
+                <SectionEyebrow>AP Reference</SectionEyebrow>
+                <div className="mb-4 flex items-center gap-3">
+                    <Terminal size={18} className="text-sky-300" />
+                    <h3 className="text-lg font-bold text-white">{title}</h3>
+                </div>
+                <div className="code-font space-y-2 rounded-2xl bg-slate-950/90 p-4 text-sm text-slate-200">
+                    {lines.map((line, index) => (
+                        <div key={index}>{line}</div>
+                    ))}
+                </div>
+                {note ? <p className="mt-4 text-sm leading-relaxed text-slate-400">{note}</p> : null}
+            </Card>
+        );
+
+        const SearchDeskOverflow = () => {
             const [isExtracted, setIsExtracted] = useState(false);
-            const [eggTime, setEggTime] = useState(3);
-            const [isFlashing, setIsFlashing] = useState(false);
+            const [target, setTarget] = useState('Mia Lopez');
+            const [strategy, setStrategy] = useState('Linear Search');
+
+            const resultFor = (roster) => (
+                strategy === 'Binary Search'
+                    ? binarySearchSummary(roster.students, target)
+                    : linearSearchResult(roster.students, target)
+            );
+
+            return (
+                <div className="scene-enter grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                    <Card>
+                        <SectionEyebrow>Scene 1 · Search Desk Overflow</SectionEyebrow>
+                        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">把三份重复查找，压缩成一个 Procedure</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">三个校园服务台都在做“查学生名单”这件事。先看到冗余，再把它折叠成统一接口。</p>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <button onClick={() => setIsExtracted((value) => !value)} className={`control-btn ${isExtracted ? 'active' : 'primary'}`}>
+                                    <Box size={18} />
+                                    {isExtracted ? 'Show Raw Code' : 'Extract Procedure'}
+                                </button>
+                                <button
+                                    onClick={() => setStrategy((value) => value === 'Linear Search' ? 'Binary Search' : 'Linear Search')}
+                                    disabled={!isExtracted}
+                                    className={`control-btn ${strategy === 'Binary Search' ? 'active' : ''}`}
+                                >
+                                    <RefreshCw size={18} />
+                                    {strategy === 'Linear Search' ? 'Upgrade to Binary' : 'Use Linear Again'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mb-5 flex flex-col gap-4 rounded-[24px] border border-slate-800 bg-slate-950/60 p-4 lg:flex-row lg:items-center">
+                            <label className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Shared Target Parameter</label>
+                            <div className="flex flex-wrap gap-2">
+                                {PROCEDURE_TARGETS.map((name) => (
+                                    <button
+                                        key={name}
+                                        onClick={() => setTarget(name)}
+                                        className={`rounded-full px-4 py-2 text-sm font-bold transition ${target === name ? 'bg-sky-500/20 text-sky-200 ring-1 ring-sky-500/40' : 'bg-slate-900 text-slate-300 ring-1 ring-slate-800 hover:text-white'}`}
+                                    >
+                                        {name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="rounded-[24px] border border-slate-800 bg-slate-950/70 p-5">
+                            {!isExtracted ? (
+                                <div className="grid gap-4 lg:grid-cols-3">
+                                    {PROCEDURE_ROSTERS.map((roster) => (
+                                        <div key={roster.id} className="rounded-[22px] border border-slate-800 bg-slate-900/70 p-4">
+                                            <div className="mb-3 text-sm font-bold text-white">{roster.desk}</div>
+                                            <div className="code-font space-y-2 text-[12px] text-slate-300">
+                                                <div>FOR EACH student IN {roster.rosterName}</div>
+                                                <div className="pl-4">IF student = "{target}"</div>
+                                                <div className="pl-8 text-emerald-300">RETURN "FOUND"</div>
+                                                <div>RETURN "NOT FOUND"</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+                                    <div className="rounded-[22px] border border-sky-500/20 bg-sky-500/5 p-5">
+                                        <div className="mb-3 flex items-center gap-2 text-sky-300">
+                                            <Code2 size={18} />
+                                            <span className="text-sm font-bold uppercase tracking-[0.18em]">Procedure Body</span>
+                                        </div>
+                                        <div className="code-font space-y-2 text-sm text-slate-200">
+                                            <div><span className="text-fuchsia-300">PROCEDURE</span> searchRoster(target, roster)</div>
+                                            {strategy === 'Linear Search' ? (
+                                                <React.Fragment>
+                                                    <div className="pl-4">FOR EACH student IN roster</div>
+                                                    <div className="pl-8">IF student = target</div>
+                                                    <div className="pl-12 text-emerald-300">RETURN "FOUND"</div>
+                                                    <div className="pl-4">RETURN "NOT FOUND"</div>
+                                                </React.Fragment>
+                                            ) : (
+                                                <React.Fragment>
+                                                    <div className="pl-4 text-sky-200">// roster is sorted in this scene</div>
+                                                    <div className="pl-4">REPEAT UNTIL range is empty</div>
+                                                    <div className="pl-8">check middle item</div>
+                                                    <div className="pl-8">discard half of the list</div>
+                                                    <div className="pl-8 text-emerald-300">RETURN "FOUND" or "NOT FOUND"</div>
+                                                </React.Fragment>
+                                            )}
+                                        </div>
+                                        <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm leading-relaxed text-slate-400">
+                                            调用方式保持不变，但内部策略可以升级。这一幕把“抽象”和“搜索策略”第一次连接起来。
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {PROCEDURE_ROSTERS.map((roster) => {
+                                            const result = resultFor(roster);
+                                            return (
+                                                <div key={roster.id} className="rounded-[22px] border border-slate-800 bg-slate-900/70 p-4">
+                                                    <div className="mb-3 flex items-center justify-between">
+                                                        <div>
+                                                            <div className="text-sm font-bold text-white">{roster.short}</div>
+                                                            <div className="text-xs text-slate-500">{roster.rosterName}</div>
+                                                        </div>
+                                                        <div className="rounded-full bg-slate-950 px-3 py-1 text-xs font-bold text-slate-400">
+                                                            call site unchanged
+                                                        </div>
+                                                    </div>
+                                                    <div className="code-font rounded-2xl bg-slate-950/90 px-4 py-3 text-sm text-slate-200">
+                                                        searchRoster("{target}", {roster.rosterName})
+                                                    </div>
+                                                    <div className="mt-3 flex flex-wrap gap-3">
+                                                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${result.index >= 0 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                                                            {result.index >= 0 ? `FOUND @ ${result.index}` : 'NOT FOUND'}
+                                                        </span>
+                                                        <span className="rounded-full bg-sky-500/15 px-3 py-1 text-xs font-bold text-sky-200">
+                                                            {strategy}: {result.steps} step{result.steps > 1 ? 's' : ''}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+
+                    <div className="grid gap-6">
+                        <ReferenceCard
+                            title="Calling Procedures"
+                            lines={[
+                                'PROCEDURE searchRoster(target, roster)',
+                                '  ... search logic ...',
+                                'RETURN result',
+                                '',
+                                'result <- searchRoster(target, roster)'
+                            ]}
+                            note="APCSP 里 procedure 的重点是接口、参数和复用。学生不需要一开始就知道内部所有细节。"
+                        />
+                        <Card className="border-emerald-500/20 bg-emerald-500/5">
+                            <SectionEyebrow>Teacher Move</SectionEyebrow>
+                            <h3 className="text-xl font-bold text-white">Aha Moment</h3>
+                            <p className="mt-3 text-sm leading-relaxed text-slate-300">
+                                先抽取 `Procedure`，再切换内部策略。这样学生能看到“调用点不动，但实现升级”的抽象价值，而不是只把封装理解成“少打几行字”。
+                            </p>
+                            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <MetricCard label="Shared Parameter" value={target} note="All three calls update" />
+                                <MetricCard label="Internal Strategy" value={strategy} note="Only the body changes" />
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        };
+
+        const UnsortedLostAndFound = () => {
+            const [caseIndex, setCaseIndex] = useState(0);
+            const [pointer, setPointer] = useState(0);
+            const [currentIndex, setCurrentIndex] = useState(null);
+            const [visited, setVisited] = useState([]);
+            const [status, setStatus] = useState('ready');
+            const [foundIndex, setFoundIndex] = useState(-1);
+            const [steps, setSteps] = useState(0);
+            const [isAuto, setIsAuto] = useState(false);
+
+            const currentCase = LOST_CASES[caseIndex];
+
+            const resetCase = () => {
+                setPointer(0);
+                setCurrentIndex(null);
+                setVisited([]);
+                setStatus('ready');
+                setFoundIndex(-1);
+                setSteps(0);
+                setIsAuto(false);
+            };
 
             useEffect(() => {
-                if (eggTime) {
-                    setIsFlashing(true);
-                    const timer = setTimeout(() => setIsFlashing(false), 300);
-                    return () => clearTimeout(timer);
+                resetCase();
+            }, [caseIndex]);
+
+            const stepSearch = () => {
+                if (status === 'found' || status === 'not_found') {
+                    return;
                 }
-            }, [eggTime]);
+
+                const item = currentCase.items[pointer];
+                setCurrentIndex(pointer);
+                setVisited((items) => [...items, pointer]);
+                setSteps((value) => value + 1);
+
+                if (item.label === currentCase.target) {
+                    setFoundIndex(pointer);
+                    setStatus('found');
+                    setIsAuto(false);
+                    return;
+                }
+
+                if (pointer === currentCase.items.length - 1) {
+                    setStatus('not_found');
+                    setIsAuto(false);
+                    return;
+                }
+
+                setPointer((value) => value + 1);
+                setStatus('running');
+            };
+
+            useEffect(() => {
+                if (!isAuto || status === 'found' || status === 'not_found') {
+                    return undefined;
+                }
+                const timer = setTimeout(() => {
+                    stepSearch();
+                }, 720);
+                return () => clearTimeout(timer);
+            }, [isAuto, pointer, status, caseIndex]);
 
             return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-6xl fade-in mx-auto">
+                <div className="scene-enter grid grid-cols-1 gap-6 xl:grid-cols-[1.08fr_0.92fr]">
                     <Card>
-                        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                            <Terminal className="text-blue-400" size={24} />
-                            机器人指令编辑器
-                        </h2>
-                        <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 min-h-[340px] relative overflow-hidden text-left">
-                            <div className="code-font text-sm md:text-base space-y-2">
-                                {!isExtracted ? (
-                                    <React.Fragment>
-                                        <div className="text-slate-500 mb-4">// 重复 3 遍相同的代码 (Redundant)</div>
-                                        {[1, 2, 3].map(i => (
-                                            <div key={i} className="space-y-1 mb-4 border-l-2 border-slate-800 pl-4 py-1">
-                                                <div className="flex items-center gap-2 font-bold">
-                                                    <span className="text-orange-400">boil_egg</span>
-                                                    <span className="text-slate-500">(</span>
-                                                    <span className={`px-1 rounded transition-colors ${isFlashing ? 'bg-blue-500 text-white' : 'text-blue-300'}`}>
-                                                        {String(eggTime)}
-                                                    </span>
-                                                    <span className="text-slate-500">)</span>
-                                                </div>
-                                                <div className="text-blue-200">pour_milk()</div>
-                                                <div className="text-blue-200">toast_bread()</div>
-                                            </div>
-                                        ))}
-                                    </React.Fragment>
-                                ) : (
-                                    <React.Fragment>
-                                        <div className="text-green-500/80 mb-4 italic">// 定义一个过程 (Define Procedure)</div>
-                                        <div className="bg-blue-900/20 -mx-6 px-6 py-4 border-y border-blue-500/20 mb-6">
-                                            <span className="text-purple-400 font-bold">PROCEDURE</span>
-                                            <span className="text-white ml-2">make_breakfast</span>
-                                            <span className="text-slate-400">(</span>
-                                            <span className="text-blue-300 italic">time</span>
-                                            <span className="text-slate-400">) {`{`}</span>
-                                            <div className="pl-6 mt-1 text-slate-300 opacity-60">boil_egg(time)</div>
-                                            <div className="pl-6 text-slate-300 opacity-60">pour_milk()</div>
-                                            <div className="pl-6 text-slate-300 opacity-60">toast_bread()</div>
-                                            <div className="text-slate-400 font-bold">{`}`}</div>
-                                        </div>
-                                        <div className="text-slate-500 mb-4">// 只需要调用过程名 (Call)</div>
-                                        {[1, 2, 3].map(i => (
-                                            <div key={i} className="flex items-center gap-2 pl-4 py-1 text-lg font-bold">
-                                                <span className="text-white">make_breakfast</span>
-                                                <span className="text-slate-500">(</span>
-                                                <span className={`px-1 rounded transition-colors ${isFlashing ? 'bg-blue-500 text-white' : 'text-blue-300'}`}>
-                                                    {String(eggTime)}
-                                                </span>
-                                                <span className="text-slate-500">)</span>
-                                            </div>
-                                        ))}
-                                    </React.Fragment>
-                                )}
+                        <SectionEyebrow>Scene 2 · Unsorted Lost-and-Found</SectionEyebrow>
+                        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">乱序数据里，线性查找是最可靠的策略</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">没有排序线索时，扫描器只能从左到右一个个检查。你可以用固定案例感受首位命中、末位命中和未找到。</p>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <button onClick={resetCase} className="control-btn">
+                                    <RotateCcw size={18} />
+                                    Reset
+                                </button>
+                                <button onClick={stepSearch} disabled={status === 'found' || status === 'not_found' || isAuto} className="control-btn">
+                                    <ArrowRight size={18} />
+                                    Step
+                                </button>
+                                <button onClick={() => setIsAuto((value) => !value)} disabled={status === 'found' || status === 'not_found'} className={`control-btn ${isAuto ? 'active' : 'primary'}`}>
+                                    <Play size={18} />
+                                    {isAuto ? 'Pause' : 'Auto Run'}
+                                </button>
+                                <button onClick={() => setCaseIndex((value) => (value + 1) % LOST_CASES.length)} className="control-btn">
+                                    <RefreshCw size={18} />
+                                    New Case
+                                </button>
                             </div>
                         </div>
-                        <div className="mt-6 flex flex-wrap gap-4 items-center">
-                            <div className="flex-1 min-w-[200px] flex items-center gap-4 bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">时间参数</span>
-                                <input type="range" min="1" max="10" value={eggTime} onChange={(e) => setEggTime(parseInt(e.target.value))} className="flex-1 accent-blue-500" />
-                                <span className="code-font text-blue-400 font-bold w-4">{String(eggTime)}</span>
+
+                        <div className="mb-5 rounded-[24px] border border-slate-800 bg-slate-950/65 p-4">
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <div className="text-sm font-bold text-white">{currentCase.title}</div>
+                                    <div className="text-sm text-slate-400">{currentCase.hint}</div>
+                                </div>
+                                <div className="rounded-full bg-sky-500/15 px-4 py-2 text-sm font-bold text-sky-200">
+                                    target = {currentCase.target}
+                                </div>
                             </div>
-                            <button onClick={() => setIsExtracted(!isExtracted)} className={`px-6 py-4 rounded-2xl font-bold flex items-center gap-2 transition-all shadow-lg text-white ${isExtracted ? 'bg-slate-700 hover:bg-slate-600' : 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/20'}`}>
-                                {isExtracted ? <RotateCcw size={20} /> : <Box size={20} />}
-                                {isExtracted ? "撤销封装" : "封装成 Procedure"}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                            {currentCase.items.map((item, index) => {
+                                const isCurrent = currentIndex === index && status !== 'found';
+                                const isVisited = visited.includes(index);
+                                const isFound = foundIndex === index;
+                                return (
+                                    <div
+                                        key={`${item.label}-${index}`}
+                                        className={`relative min-h-[130px] rounded-[22px] border p-4 transition-all duration-300 ${
+                                            isFound
+                                                ? 'border-emerald-500 bg-emerald-500/15 scale-[1.02]'
+                                                : isCurrent
+                                                    ? 'border-sky-500 bg-sky-500/15 scale-[1.02]'
+                                                    : isVisited
+                                                        ? 'border-slate-700 bg-slate-900/90 opacity-70'
+                                                        : 'border-slate-800 bg-slate-950/70'
+                                        }`}
+                                    >
+                                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">slot {index}</div>
+                                        <div className="mt-5 text-4xl">{item.icon}</div>
+                                        <div className="mt-3 text-sm font-bold text-white">{item.label}</div>
+                                        {isCurrent ? <div className="mt-3 text-xs font-bold text-sky-300">SCANNING...</div> : null}
+                                        {isFound ? <div className="mt-3 text-xs font-bold text-emerald-300">FOUND</div> : null}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </Card>
+
+                    <div className="grid gap-6">
+                        <ReferenceCard
+                            title="Linear Search"
+                            lines={[
+                                'FOR EACH item IN lostItems',
+                                '  IF item = target',
+                                '    RETURN "FOUND"',
+                                'RETURN "NOT FOUND"'
+                            ]}
+                            note="在乱序列表里，AP 风格最关键的直觉是：没有可靠依据就不能跳过中间任何元素。"
+                        />
+
+                        <Card className="border-amber-500/20 bg-amber-500/5">
+                            <SectionEyebrow>Live Readout</SectionEyebrow>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                <MetricCard label="Status" value={status.toUpperCase()} />
+                                <MetricCard label="Checked" value={`${steps}/${currentCase.items.length}`} />
+                                <MetricCard label="Current Index" value={currentIndex === null ? '-' : currentIndex} />
+                            </div>
+                            <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/85 p-4 text-sm leading-relaxed text-slate-300">
+                                {status === 'found' && `线性查找在第 ${foundIndex} 格命中目标。`}
+                                {status === 'not_found' && '所有格子都检查完了，目标不存在，但算法是正确结束的。'}
+                                {(status === 'ready' || status === 'running') && '乱序数据没有捷径，扫描器只能继续逐个检查。'}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        };
+        const SortOrFailLab = () => {
+            const [caseIndex, setCaseIndex] = useState(0);
+            const [sortEnabled, setSortEnabled] = useState(false);
+            const [range, setRange] = useState({ low: 0, high: SORT_FAIL_CASES[0].list.length - 1, mid: null });
+            const [status, setStatus] = useState('ready');
+            const [steps, setSteps] = useState(0);
+            const [isAuto, setIsAuto] = useState(false);
+            const [warning, setWarning] = useState('');
+            const [log, setLog] = useState(['Binary search is waiting for its first decision.']);
+            const [lastDiscard, setLastDiscard] = useState(null);
+
+            const baseCase = SORT_FAIL_CASES[caseIndex];
+            const orderedList = [...baseCase.list].sort((a, b) => a - b);
+            const data = sortEnabled ? orderedList : baseCase.list;
+
+            useEffect(() => {
+                setRange({ low: 0, high: data.length - 1, mid: null });
+                setStatus('ready');
+                setSteps(0);
+                setIsAuto(false);
+                setWarning('');
+                setLastDiscard(null);
+                setLog(['Binary search is waiting for its first decision.']);
+            }, [caseIndex, sortEnabled]);
+
+            const resetSearch = () => {
+                setRange({ low: 0, high: data.length - 1, mid: null });
+                setStatus('ready');
+                setSteps(0);
+                setIsAuto(false);
+                setWarning('');
+                setLastDiscard(null);
+                setLog(['Binary search is waiting for its first decision.']);
+            };
+
+            const stepSearch = () => {
+                if (status === 'found' || status === 'not_found') return;
+
+                const low = range.low;
+                const high = range.high;
+                if (low > high) {
+                    setStatus('not_found');
+                    setIsAuto(false);
+                    setLog((items) => ['Search ended with no result.', ...items].slice(0, 4));
+                    return;
+                }
+
+                const mid = Math.floor((low + high) / 2);
+                const midValue = data[mid];
+                const targetIndex = data.indexOf(baseCase.target);
+                let nextLow = low;
+                let nextHigh = high;
+                let mistake = '';
+                let discard = null;
+                let nextStatus = 'running';
+                let message = `Check middle index ${mid} -> ${midValue}.`;
+
+                setSteps((value) => value + 1);
+
+                if (midValue === baseCase.target) {
+                    setRange({ low, high, mid });
+                    setStatus('found');
+                    setIsAuto(false);
+                    setLastDiscard(null);
+                    setLog((items) => [`Found ${baseCase.target} at index ${mid}.`, ...items].slice(0, 4));
+                    return;
+                }
+
+                if (midValue < baseCase.target) {
+                    discard = { start: low, end: mid, wrong: !sortEnabled && targetIndex >= low && targetIndex <= mid };
+                    nextLow = mid + 1;
+                    message = `${midValue} < ${baseCase.target}, so the algorithm keeps the right half.`;
+                    if (discard.wrong) mistake = `Oops: the discarded left half (${low}-${mid}) actually contained the target.`;
+                } else {
+                    discard = { start: mid, end: high, wrong: !sortEnabled && targetIndex >= mid && targetIndex <= high };
+                    nextHigh = mid - 1;
+                    message = `${midValue} > ${baseCase.target}, so the algorithm keeps the left half.`;
+                    if (discard.wrong) mistake = `Oops: the discarded right half (${mid}-${high}) actually contained the target.`;
+                }
+
+                if (nextLow > nextHigh) {
+                    nextStatus = 'not_found';
+                    setIsAuto(false);
+                }
+
+                setRange({ low: nextLow, high: nextHigh, mid });
+                setStatus(nextStatus);
+                setLastDiscard(discard);
+                setWarning(mistake);
+                setLog((items) => [message, ...items].slice(0, 4));
+            };
+
+            useEffect(() => {
+                if (!isAuto || status === 'found' || status === 'not_found') return undefined;
+                const timer = setTimeout(() => {
+                    stepSearch();
+                }, 760);
+                return () => clearTimeout(timer);
+            }, [isAuto, range, status, caseIndex, sortEnabled]);
+
+            return (
+                <div className="scene-enter grid grid-cols-1 gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+                    <Card>
+                        <SectionEyebrow>Scene 3 · Sort or Fail Lab</SectionEyebrow>
+                        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">Binary Search 不是“总能更快”</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">先故意在未排序列表上运行二分查找，看它怎样自信地丢掉正确答案；再打开排序，让同一策略变得可靠。</p>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <button onClick={resetSearch} className="control-btn"><RotateCcw size={18} />Reset</button>
+                                <button onClick={stepSearch} disabled={status === 'found' || status === 'not_found' || isAuto} className="control-btn"><ArrowRight size={18} />Step</button>
+                                <button onClick={() => setIsAuto((value) => !value)} disabled={status === 'found' || status === 'not_found'} className={`control-btn ${isAuto ? 'active' : 'primary'}`}><Play size={18} />{isAuto ? 'Pause' : 'Auto Run'}</button>
+                                <button onClick={() => setCaseIndex((value) => (value + 1) % SORT_FAIL_CASES.length)} className="control-btn"><RefreshCw size={18} />New Case</button>
+                            </div>
+                        </div>
+
+                        <div className="mb-5 flex flex-col gap-4 rounded-[24px] border border-slate-800 bg-slate-950/65 p-4 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <div className="text-sm font-bold text-white">{baseCase.title}</div>
+                                <div className="text-sm text-slate-400">target = {baseCase.target}</div>
+                            </div>
+                            <button onClick={() => setSortEnabled((value) => !value)} className={`control-btn ${sortEnabled ? 'active' : ''}`}>
+                                <Filter size={18} />
+                                {sortEnabled ? 'Sorted Data ON' : 'Sorted Data OFF'}
                             </button>
                         </div>
-                    </Card>
 
-                    <Card className="flex flex-col items-center justify-center text-center">
-                        <div className="relative mb-8">
-                            <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full" />
-                            <div className="w-32 h-32 bg-slate-800 rounded-2xl border-2 border-slate-700 flex items-center justify-center relative z-10 shadow-2xl">
-                                <Coffee size={64} className="text-blue-400" />
-                            </div>
-                        </div>
-                        <h3 className="text-2xl font-bold mb-6 text-white text-left italic">封装的好处：抽象与简洁</h3>
-                        <div className="space-y-6 text-left w-full">
-                            <div className={`p-5 rounded-2xl border transition-all duration-500 flex items-start gap-4 ${!isExtracted ? 'bg-blue-500/10 border-blue-500/30' : 'bg-slate-800/30 border-slate-700 opacity-50'}`}>
-                                <AlertCircle size={24} className="text-blue-400 mt-1 shrink-0" />
-                                <div>
-                                    <h4 className="font-bold text-lg mb-1 text-white">重复的痛苦 (Pain)</h4>
-                                    <p className="text-slate-400 text-sm leading-relaxed">没有封装时，同样的逻辑写了 3 遍。每次修改参数，你都要手动改三个地方，效率低且容易出错。</p>
-                                </div>
-                            </div>
-                            <div className={`p-5 rounded-2xl border transition-all duration-500 flex items-start gap-4 ${isExtracted ? 'bg-purple-500/10 border-purple-500/30' : 'bg-slate-800/30 border-slate-700 opacity-50'}`}>
-                                <CheckCircle2 size={24} className="text-purple-400 mt-1 shrink-0" />
-                                <div>
-                                    <h4 className="font-bold text-lg mb-1 text-white">封装的力量 (Power)</h4>
-                                    <p className="text-slate-400 text-sm leading-relaxed">封装后，你只需修改一处参数，所有调用点都会同步更新。这隐藏了细节，让你能掌控全局。</p>
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            );
-        };
-
-        const MessyShelfSearch = () => {
-            const [shelf, setShelf] = useState(['🍎', '🍌', '🍇', '🍒', '🍓', '🥝', '🥭', '🍍', '🥑', '🥦']);
-            const [target, setTarget] = useState('🍒');
-            const [currentIndex, setCurrentIndex] = useState(-1);
-            const [status, setStatus] = useState("idle");
-
-            const init = () => {
-                const items = ['🍎', '🍌', '🍇', '🍒', '🍓', '🥝', '🥭', '🍍', '🥑', '🥦', '🌽', '🥗'];
-                const newShelf = [...items].sort(() => Math.random() - 0.5).slice(0, 10);
-                const pick = newShelf[Math.floor(Math.random() * newShelf.length)];
-                setShelf(newShelf);
-                setTarget(pick);
-                setCurrentIndex(-1);
-                setStatus("idle");
-            };
-
-            const runSearch = async () => {
-                setStatus("searching");
-                for (let i = 0; i < shelf.length; i++) {
-                    setCurrentIndex(i);
-                    await new Promise(r => setTimeout(r, 600));
-                    if (shelf[i] === target) {
-                        setStatus("found");
-                        return;
-                    }
-                }
-                setStatus("not_found");
-            };
-
-            return (
-                <div className="w-full max-w-5xl flex flex-col gap-8 fade-in mx-auto px-4">
-                    <div className="text-center">
-                        <h2 className="text-3xl font-bold mb-3 text-white">线性查找：地毯式搜索</h2>
-                        <p className="text-slate-400 max-w-2xl mx-auto">当数据乱序时，只能从第一个开始，逐一检查目标。</p>
-                    </div>
-
-                    <Card className="relative overflow-hidden">
-                        <div className="flex justify-between items-center mb-10">
-                            <div className="flex items-center gap-4">
-                                <div className="text-xs font-bold text-slate-500 uppercase tracking-widest text-left">目标:</div>
-                                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-4xl shadow-lg ring-4 ring-blue-900/50">{String(target)}</div>
-                            </div>
-                            <div className="flex gap-4">
-                                <button onClick={init} disabled={status === "searching"} className="p-3 bg-slate-800 rounded-xl hover:bg-slate-700 disabled:opacity-30 text-white"><RotateCcw size={24} /></button>
-                                <button onClick={runSearch} disabled={status !== "idle"} className="px-8 py-3 bg-blue-600 rounded-xl hover:bg-blue-500 font-bold flex items-center gap-2 disabled:opacity-30 text-white"><Play size={20} /> 开始查找</button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-5 md:grid-cols-10 gap-3">
-                            {shelf.map((item, idx) => (
-                                <div key={idx} className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center text-3xl transition-all duration-300 relative ${currentIndex === idx ? 'bg-blue-600/20 border-blue-500 scale-110 z-10' : (status === "found" && item === target ? 'bg-green-600/20 border-green-500 scale-110' : 'bg-slate-800/80 border-slate-700')}`}>
-                                    {String(item)}
-                                    <div className="absolute -bottom-6 text-[10px] font-bold text-slate-500 code-font">IDX:{String(idx)}</div>
-                                </div>
-                            ))}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                            {data.map((value, index) => {
+                                const outOfRange = index < range.low || index > range.high;
+                                const isMid = range.mid === index;
+                                const isTarget = value === baseCase.target;
+                                const discardedNow = lastDiscard && index >= lastDiscard.start && index <= lastDiscard.end;
+                                return (
+                                    <div
+                                        key={`${value}-${index}-${sortEnabled ? 'sorted' : 'raw'}`}
+                                        className={`rounded-[22px] border px-4 py-5 transition-all duration-300 ${
+                                            isMid
+                                                ? 'border-sky-500 bg-sky-500/15 scale-[1.03]'
+                                                : discardedNow && lastDiscard?.wrong
+                                                    ? 'border-rose-500 bg-rose-500/15'
+                                                    : outOfRange
+                                                        ? 'border-slate-900 bg-slate-950/40 opacity-35'
+                                                        : 'border-slate-800 bg-slate-950/70'
+                                        }`}
+                                    >
+                                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">idx {index}</div>
+                                        <div className="mt-3 text-2xl font-bold text-white">{value}</div>
+                                        {isMid ? <div className="mt-3 text-xs font-bold text-sky-300">MID</div> : null}
+                                        {isTarget ? <div className="mt-1 text-xs font-bold text-amber-300">TARGET</div> : null}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </Card>
 
-                    <div className="grid grid-cols-3 gap-6">
-                        <div className="glass-panel p-4 rounded-2xl border border-slate-800 text-center"><div className="text-[10px] font-bold text-slate-500 mb-1">复杂度</div><div className="text-xl font-bold text-orange-400 font-mono">O(N)</div></div>
-                        <div className="glass-panel p-4 rounded-2xl border border-slate-800 text-center"><div className="text-[10px] font-bold text-slate-500 mb-1 text-left">平均步数</div><div className="text-xl font-bold text-blue-400 font-mono">N/2</div></div>
-                        <div className="glass-panel p-4 rounded-2xl border border-slate-800 text-center"><div className="text-[10px] font-bold text-slate-500 mb-1 text-left">状态</div><div className={`text-xl font-bold font-mono ${status === 'found' ? 'text-green-500' : 'text-slate-300'}`}>{String(status).toUpperCase()}</div></div>
-                    </div>
-                </div>
-            );
-        };
+                    <div className="grid gap-6">
+                        <ReferenceCard
+                            title="Binary Search Needs Order"
+                            lines={['set low and high', 'REPEAT UNTIL done', '  check middle item', '  discard one half', 'RETURN result']}
+                            note="APCSP 关注的是二分查找为什么成立，而不是要求你背完整的底层实现代码。"
+                        />
 
-        const SearchBattle = () => {
-            const [size, setSize] = useState(31);
-            const [target, setTarget] = useState(15);
-            const [linearIdx, setLinearIdx] = useState(-1);
-            const [binaryRange, setBinaryRange] = useState({ low: 0, high: 30, mid: -1 });
-            const [results, setResults] = useState({ linear: 0, binary: 0 });
-            const [status, setStatus] = useState("ready");
-            const isSearching = useRef(false);
-
-            const array = useMemo(() => Array.from({length: size}, (_, i) => i + 1), [size]);
-
-            const resetAll = () => {
-                setTarget(Math.floor(Math.random() * size) + 1);
-                setLinearIdx(-1);
-                setBinaryRange({ low: 0, high: size - 1, mid: -1 });
-                setResults({ linear: 0, binary: 0 });
-                setStatus("ready");
-                isSearching.current = false;
-            };
-
-            const startBattle = async () => {
-                if (isSearching.current) return;
-                isSearching.current = true;
-                setStatus("running");
-
-                let curL = 0, cL = 0, cH = size - 1, cM = -1;
-                let l_s = 0, b_s = 0, l_d = false, b_d = false;
-
-                while ((!l_d || !b_d) && isSearching.current) {
-                    if (!l_d) { 
-                        setLinearIdx(curL); 
-                        l_s++; 
-                        if (array[curL] === target) l_d = true; 
-                        else curL++; 
-                    }
-                    if (!b_d) { 
-                        cM = Math.floor((cL + cH) / 2); 
-                        setBinaryRange({ low: cL, high: cH, mid: cM }); 
-                        b_s++; 
-                        if (array[cM] === target) b_d = true; 
-                        else if (array[cM] < target) cL = cM + 1; 
-                        else cH = cM - 1; 
-                    }
-                    setResults({ linear: l_s, binary: b_s });
-                    await new Promise(r => setTimeout(r, 400));
-                }
-                setStatus("done");
-                isSearching.current = false;
-            };
-
-            return (
-                <div className="w-full max-w-6xl flex flex-col gap-6 fade-in mx-auto px-4">
-                    <div className="flex flex-col md:flex-row justify-between items-end gap-4">
-                        <div className="text-left">
-                            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent italic">效率之战：线性 vs 二分</h2>
-                            <p className="text-slate-400 mt-2 text-left">二分查找：每次排除一半的可能，效率质变。</p>
-                        </div>
-                        <div className="flex flex-wrap gap-4 items-center glass-panel px-6 py-4 rounded-2xl border border-slate-800">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase text-left">规模(N)</span>
-                                <div className="flex items-center gap-3">
-                                    <input type="range" min="10" max="63" value={size} onChange={(e) => setSize(parseInt(e.target.value))} disabled={status === "running"} className="accent-blue-500" />
-                                    <span className="code-font font-bold text-blue-400 w-8">{String(size)}</span>
-                                </div>
+                        <Card className={`${warning ? 'border-rose-500/25 bg-rose-500/5' : 'border-emerald-500/20 bg-emerald-500/5'}`}>
+                            <SectionEyebrow>Decision Trace</SectionEyebrow>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                <MetricCard label="low / high" value={`${range.low} / ${range.high}`} />
+                                <MetricCard label="Steps" value={steps} />
+                                <MetricCard label="Status" value={status.toUpperCase()} />
                             </div>
-                            <div className="text-center px-4 border-l border-slate-800">
-                                <span className="block text-[10px] font-bold text-slate-500 uppercase text-left">目标</span>
-                                <span className="text-2xl font-bold code-font text-white">{String(target)}</span>
+                            <div className={`mt-5 rounded-2xl border p-4 text-sm leading-relaxed ${warning ? 'border-rose-500/25 bg-rose-500/10 text-rose-200' : 'border-slate-800 bg-slate-950/85 text-slate-300'}`}>
+                                {warning || (sortEnabled ? '排序打开后，“排除一半”终于有了可靠依据。' : '排序关闭时，binary search 的每次排除都只是在赌博。')}
                             </div>
-                            <button onClick={startBattle} disabled={status === "running" || status === "done"} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white disabled:opacity-20 flex items-center gap-2"><Zap size={18} /> 开战</button>
-                            <button onClick={resetAll} disabled={status === "running"} className="p-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-white"><RotateCcw size={18} /></button>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-[360px]">
-                        <Card className="flex flex-col text-left">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold flex items-center gap-2"><List size={20} /> 线性查找</h3>
-                                <div className="text-2xl font-mono font-bold text-slate-300">步数: <span className="text-white">{String(results.linear)}</span></div>
-                            </div>
-                            <div className="flex-1 flex flex-wrap gap-1 content-start overflow-y-auto max-h-[240px]">
-                                {array.map((val, idx) => (
-                                    <div key={idx} className={`w-8 h-8 rounded-md flex items-center justify-center text-[10px] font-bold transition-all ${linearIdx === idx ? 'bg-blue-600' : (val === target && status === "done" ? 'bg-green-500' : 'bg-slate-800 opacity-40')}`}>{String(val)}</div>
+                            <div className="mt-4 space-y-2">
+                                {log.map((entry, index) => (
+                                    <div key={`${entry}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-300">{entry}</div>
                                 ))}
                             </div>
                         </Card>
-                        <Card className="flex flex-col border-2 border-blue-500/30 text-left">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold flex items-center gap-2 text-blue-400"><Search size={20} /> 二分查找</h3>
-                                <div className="text-2xl font-mono font-bold text-blue-400">步数: <span className="text-white">{String(results.binary)}</span></div>
+                    </div>
+                </div>
+            );
+        };
+        const BinaryCommandConsole = () => {
+            const [size, setSize] = useState(31);
+            const [caseIndex, setCaseIndex] = useState(0);
+            const [range, setRange] = useState({ low: 0, high: 30, mid: null });
+            const [status, setStatus] = useState('ready');
+            const [steps, setSteps] = useState(0);
+            const [isAuto, setIsAuto] = useState(false);
+            const [log, setLog] = useState(['Command console ready.']);
+
+            const data = Array.from({ length: size }, (_, index) => index + 1);
+            const targetCase = getBinaryConsoleTarget(size, caseIndex);
+            const linearReference = targetCase.value <= size ? targetCase.value : size;
+
+            useEffect(() => {
+                setRange({ low: 0, high: size - 1, mid: null });
+                setStatus('ready');
+                setSteps(0);
+                setIsAuto(false);
+                setLog(['Command console ready.']);
+            }, [size, caseIndex]);
+
+            const resetSearch = () => {
+                setRange({ low: 0, high: size - 1, mid: null });
+                setStatus('ready');
+                setSteps(0);
+                setIsAuto(false);
+                setLog(['Command console ready.']);
+            };
+
+            const stepSearch = () => {
+                if (status === 'found' || status === 'not_found') return;
+
+                const low = range.low;
+                const high = range.high;
+                if (low > high) {
+                    setStatus('not_found');
+                    setIsAuto(false);
+                    setLog((items) => [`Range is empty. Target ${targetCase.value} is not present.`, ...items].slice(0, 4));
+                    return;
+                }
+
+                const mid = Math.floor((low + high) / 2);
+                const value = data[mid];
+                let nextLow = low;
+                let nextHigh = high;
+                let nextStatus = 'running';
+                let message = `Check index ${mid} -> ${value}.`;
+
+                setSteps((current) => current + 1);
+
+                if (value === targetCase.value) {
+                    setRange({ low, high, mid });
+                    setStatus('found');
+                    setIsAuto(false);
+                    setLog((items) => [`Found ${targetCase.value} in ${steps + 1} step(s).`, ...items].slice(0, 4));
+                    return;
+                }
+
+                if (value < targetCase.value) {
+                    nextLow = mid + 1;
+                    message = `${value} < ${targetCase.value}, so keep the right half.`;
+                } else {
+                    nextHigh = mid - 1;
+                    message = `${value} > ${targetCase.value}, so keep the left half.`;
+                }
+
+                if (nextLow > nextHigh) {
+                    nextStatus = 'not_found';
+                    setIsAuto(false);
+                }
+
+                setRange({ low: nextLow, high: nextHigh, mid });
+                setStatus(nextStatus);
+                setLog((items) => [message, ...items].slice(0, 4));
+            };
+
+            useEffect(() => {
+                if (!isAuto || status === 'found' || status === 'not_found') return undefined;
+                const timer = setTimeout(() => {
+                    stepSearch();
+                }, 560);
+                return () => clearTimeout(timer);
+            }, [isAuto, range, status, size, caseIndex]);
+
+            return (
+                <div className="scene-enter grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                    <Card>
+                        <SectionEyebrow>Scene 4 · Binary Command Console</SectionEyebrow>
+                        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">看懂“每次减半”到底有多强</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">把规模拉到 127，binary search 依然只需要少量回合。这里的重点是策略和效率，不是考试外的实现细节。</p>
                             </div>
-                            <div className="flex-1 flex flex-wrap gap-1 content-start overflow-y-auto max-h-[240px]">
-                                {array.map((val, idx) => {
-                                    const out = idx < binaryRange.low || idx > binaryRange.high;
-                                    return <div key={idx} className={`w-8 h-8 rounded-md flex items-center justify-center text-[10px] font-bold transition-all ${binaryRange.mid === idx ? 'bg-blue-600 scale-125 z-10' : (val === target && status === "done" ? 'bg-green-500' : (out && results.binary > 0 ? 'opacity-10 scale-90' : 'bg-slate-800'))}`}>{String(val)}</div>;
-                                })}
+                            <div className="flex flex-wrap gap-3">
+                                <button onClick={resetSearch} className="control-btn"><RotateCcw size={18} />Reset</button>
+                                <button onClick={stepSearch} disabled={status === 'found' || status === 'not_found' || isAuto} className="control-btn"><ArrowRight size={18} />Step</button>
+                                <button onClick={() => setIsAuto((value) => !value)} disabled={status === 'found' || status === 'not_found'} className={`control-btn ${isAuto ? 'active' : 'primary'}`}><Play size={18} />{isAuto ? 'Pause' : 'Auto Run'}</button>
+                                <button onClick={() => setCaseIndex((value) => (value + 1) % 4)} className="control-btn"><RefreshCw size={18} />New Case</button>
                             </div>
+                        </div>
+
+                        <div className="mb-5 flex flex-col gap-4 rounded-[24px] border border-slate-800 bg-slate-950/65 p-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex flex-wrap gap-2">
+                                {[15, 31, 63, 127].map((preset) => (
+                                    <button
+                                        key={preset}
+                                        onClick={() => setSize(preset)}
+                                        className={`rounded-full px-4 py-2 text-sm font-bold transition ${size === preset ? 'bg-sky-500/20 text-sky-200 ring-1 ring-sky-500/40' : 'bg-slate-900 text-slate-300 ring-1 ring-slate-800 hover:text-white'}`}
+                                    >
+                                        N = {preset}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-slate-300">
+                                {targetCase.label}: target = {targetCase.value}
+                            </div>
+                        </div>
+
+                        <div className="flex max-h-[420px] flex-wrap gap-2 overflow-y-auto rounded-[24px] border border-slate-800 bg-slate-950/65 p-4">
+                            {data.map((value, index) => {
+                                const out = index < range.low || index > range.high;
+                                const isMid = range.mid === index;
+                                const isTarget = value === targetCase.value;
+                                return (
+                                    <div
+                                        key={`${value}-${index}`}
+                                        className={`flex h-10 w-10 items-center justify-center rounded-xl text-[11px] font-bold transition-all duration-300 ${
+                                            isMid
+                                                ? 'bg-sky-500 text-white scale-110'
+                                                : isTarget && status === 'found'
+                                                    ? 'bg-emerald-500 text-white'
+                                                    : out
+                                                        ? 'bg-slate-950 text-slate-700 opacity-30'
+                                                        : 'bg-slate-800 text-slate-200'
+                                        }`}
+                                    >
+                                        {value}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </Card>
+
+                    <div className="grid gap-6">
+                        <ReferenceCard
+                            title="AP CSP Boundary"
+                            lines={['Binary search works on sorted data.', 'Each round checks the middle.', 'Each round removes half the candidates.']}
+                            note="specific implementation details are outside AP CSP exam scope. 本幕重点是建立“每次减半”的稳定直觉。"
+                        />
+
+                        <Card className="border-sky-500/20 bg-sky-500/5">
+                            <SectionEyebrow>Efficiency Readout</SectionEyebrow>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <MetricCard label="Binary Steps" value={steps} />
+                                <MetricCard label="Linear Reference" value={linearReference} note="Approximate check count" />
+                                <MetricCard label="Remaining Candidates" value={range.low > range.high ? 0 : range.high - range.low + 1} />
+                                <MetricCard label="Status" value={status.toUpperCase()} />
+                            </div>
+                            <div className="mt-4 space-y-2">
+                                {log.map((entry, index) => (
+                                    <div key={`${entry}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-950/75 px-4 py-3 text-sm text-slate-300">{entry}</div>
+                                ))}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        };
+        const StrategyDispatch = () => {
+            const [caseIndex, setCaseIndex] = useState(0);
+            const [responses, setResponses] = useState(DISPATCH_CASES.map(() => ({ strategy: null, procedure: null })));
+
+            const currentCase = DISPATCH_CASES[caseIndex];
+            const currentResponse = responses[caseIndex];
+
+            const updateResponse = (field, value) => {
+                setResponses((items) => items.map((item, index) => {
+                    if (index !== caseIndex) return item;
+                    return { ...item, [field]: value };
+                }));
+            };
+
+            const resetCurrent = () => {
+                setResponses((items) => items.map((item, index) => {
+                    if (index !== caseIndex) return item;
+                    return { strategy: null, procedure: null };
+                }));
+            };
+
+            const completedCount = responses.filter((item) => item.strategy && item.procedure).length;
+            const isReady = Boolean(currentResponse.strategy && currentResponse.procedure);
+            const strategyCorrect = currentResponse.strategy === currentCase.strategy;
+            const procedureCorrect = currentResponse.procedure === currentCase.procedure;
+            const fullyCorrect = strategyCorrect && procedureCorrect;
+
+            return (
+                <div className="scene-enter grid grid-cols-1 gap-6 xl:grid-cols-[1.02fr_0.98fr]">
+                    <Card>
+                        <SectionEyebrow>Scene 5 · Strategy Dispatch</SectionEyebrow>
+                        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">最后一关：按情境选策略，再决定要不要封装</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">这一步把动画经验迁移到 AP 风格题目里。先看数据条件，再看是否会重复调用。</p>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <button onClick={resetCurrent} className="control-btn"><RotateCcw size={18} />Reset</button>
+                                <button onClick={() => setCaseIndex((value) => (value + 1) % DISPATCH_CASES.length)} className="control-btn primary"><RefreshCw size={18} />New Case</button>
+                            </div>
+                        </div>
+
+                        <div className="rounded-[24px] border border-slate-800 bg-slate-950/65 p-6">
+                            <div className="mb-4 flex items-center justify-between">
+                                <div>
+                                    <div className="text-sm font-bold text-white">{currentCase.title}</div>
+                                    <div className="mt-1 text-sm leading-relaxed text-slate-400">{currentCase.prompt}</div>
+                                </div>
+                                <div className="rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-slate-400">
+                                    case {caseIndex + 1} / {DISPATCH_CASES.length}
+                                </div>
+                            </div>
+
+                            <div className="mb-6 flex flex-wrap gap-2">
+                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${currentCase.ordered ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                                    {currentCase.ordered ? 'Sorted Data' : 'Unsorted Data'}
+                                </span>
+                                <span className="rounded-full bg-sky-500/15 px-3 py-1 text-xs font-bold text-sky-200">
+                                    {currentCase.size === 'large' ? 'Large Dataset' : 'Small Dataset'}
+                                </span>
+                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${currentCase.repeated ? 'bg-amber-500/15 text-amber-300' : 'bg-slate-800 text-slate-300'}`}>
+                                    {currentCase.repeated ? 'Repeated Task' : 'One-Time Task'}
+                                </span>
+                            </div>
+
+                            <div className="grid gap-5 lg:grid-cols-2">
+                                <div className="rounded-[22px] border border-slate-800 bg-slate-900/70 p-5">
+                                    <div className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Pick the search strategy</div>
+                                    <div className="flex flex-wrap gap-3">
+                                        {['Linear Search', 'Binary Search'].map((option) => (
+                                            <button
+                                                key={option}
+                                                onClick={() => updateResponse('strategy', option)}
+                                                className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                                                    currentResponse.strategy === option
+                                                        ? 'bg-sky-500/20 text-sky-200 ring-1 ring-sky-500/40'
+                                                        : 'bg-slate-950 text-slate-300 ring-1 ring-slate-800 hover:text-white'
+                                                }`}
+                                            >
+                                                {option}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-[22px] border border-slate-800 bg-slate-900/70 p-5">
+                                    <div className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Should this become a procedure?</div>
+                                    <div className="flex flex-wrap gap-3">
+                                        {['Yes', 'No'].map((option) => (
+                                            <button
+                                                key={option}
+                                                onClick={() => updateResponse('procedure', option)}
+                                                className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                                                    currentResponse.procedure === option
+                                                        ? 'bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/40'
+                                                        : 'bg-slate-950 text-slate-300 ring-1 ring-slate-800 hover:text-white'
+                                                }`}
+                                            >
+                                                {option}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <div className="grid gap-6">
+                        <ReferenceCard
+                            title="Selection Heuristic"
+                            lines={['1. Is the data sorted?', '2. How large is the list?', '3. Will this action repeat?', '4. Pick strategy, then pick abstraction.']}
+                            note="先判断搜索前提，再判断是否值得封装成统一接口。这就是本章最后的迁移目标。"
+                        />
+
+                        <Card className={`${isReady && fullyCorrect ? 'border-emerald-500/25 bg-emerald-500/5' : isReady ? 'border-rose-500/25 bg-rose-500/5' : 'border-slate-800 bg-slate-900/60'}`}>
+                            <SectionEyebrow>Dispatch Feedback</SectionEyebrow>
+                            {!isReady ? (
+                                <p className="text-sm leading-relaxed text-slate-300">
+                                    先做出两个决定：`search strategy` 和 `procedure decision`。系统会立刻给出原因。
+                                </p>
+                            ) : (
+                                <React.Fragment>
+                                    <div className="mb-4 flex items-center gap-3">
+                                        {fullyCorrect ? <CheckCircle2 size={22} className="text-emerald-300" /> : <XCircle size={22} className="text-rose-300" />}
+                                        <div className="text-lg font-bold text-white">
+                                            {fullyCorrect ? 'Both decisions fit the scenario.' : 'One or both decisions need a second look.'}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3 text-sm text-slate-300">
+                                        <div className={`rounded-2xl border p-4 ${strategyCorrect ? 'border-emerald-500/25 bg-emerald-500/10' : 'border-rose-500/25 bg-rose-500/10'}`}>
+                                            <div className="font-bold text-white">Search Strategy</div>
+                                            <div className="mt-2">正确答案：{currentCase.strategy}</div>
+                                            <div className="mt-1 text-slate-400">{currentCase.whyStrategy}</div>
+                                        </div>
+                                        <div className={`rounded-2xl border p-4 ${procedureCorrect ? 'border-emerald-500/25 bg-emerald-500/10' : 'border-rose-500/25 bg-rose-500/10'}`}>
+                                            <div className="font-bold text-white">Procedure Decision</div>
+                                            <div className="mt-2">正确答案：{currentCase.procedure}</div>
+                                            <div className="mt-1 text-slate-400">{currentCase.whyProcedure}</div>
+                                        </div>
+                                    </div>
+                                </React.Fragment>
+                            )}
+
+                            <div className="mt-5 grid grid-cols-2 gap-3">
+                                <MetricCard label="Completed Cases" value={`${completedCount}/${DISPATCH_CASES.length}`} />
+                                <MetricCard label="Current Goal" value="Pick both" note="strategy + procedure" />
+                            </div>
+
+                            {completedCount === DISPATCH_CASES.length ? (
+                                <div className="mt-5 rounded-2xl border border-sky-500/25 bg-sky-500/10 p-4 text-sm leading-relaxed text-sky-100">
+                                    最终 takeaway：`searchStudent(target, roster)` 这样的接口可以保持不变，但它内部能根据数据条件使用不同策略。抽象和效率不是两门课，而是一件事。
+                                </div>
+                            ) : null}
                         </Card>
                     </div>
                 </div>
@@ -331,67 +1186,111 @@
 
         const App = () => {
             const [currentScene, setCurrentScene] = useState(0);
-            
             const scenes = [
-                { id: 0, title: "1. 过程封装：机器人工坊", component: <BreakfastRobo /> },
-                { id: 1, title: "2. 线性查找：乱序货架", component: <MessyShelfSearch /> },
-                { id: 2, title: "3. 效率大站：二分魔法", component: <SearchBattle /> }
+                {
+                    title: 'Search Desk Overflow',
+                    subtitle: 'Procedure 把重复搜索收拢成统一接口',
+                    objective: '理解 procedure 的价值是复用、参数化和隐藏实现',
+                    component: <SearchDeskOverflow />
+                },
+                {
+                    title: 'Unsorted Lost-and-Found',
+                    subtitle: '乱序列表需要线性查找',
+                    objective: '理解 FOR EACH 的扫描直觉，以及 not found 也是合法结果',
+                    component: <UnsortedLostAndFound />
+                },
+                {
+                    title: 'Sort or Fail Lab',
+                    subtitle: 'Binary Search 依赖 Sorted Data',
+                    objective: '纠正“binary 永远更快”的误区',
+                    component: <SortOrFailLab />
+                },
+                {
+                    title: 'Binary Command Console',
+                    subtitle: '每次减半，让步数增长慢下来',
+                    objective: '建立二分查找效率直觉，而不是死记实现',
+                    component: <BinaryCommandConsole />
+                },
+                {
+                    title: 'Strategy Dispatch',
+                    subtitle: '根据情境选算法，再决定是否抽象',
+                    objective: '完成 APCSP 风格迁移：接口设计 + 策略选择',
+                    component: <StrategyDispatch />
+                }
             ];
 
             return (
-                <div className="flex flex-col h-screen overflow-hidden bg-slate-950">
-                    <header className="px-8 py-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center z-10">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-600 rounded-lg">
-                                <Code2 size={24} className="text-white" />
+                <div className="flex h-screen flex-col overflow-hidden">
+                    <header className="glass-panel relative z-10 border-b border-slate-800/90 px-5 py-4 md:px-8">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="flex items-start gap-4">
+                                <div className="rounded-2xl bg-sky-500/20 p-3 ring-1 ring-sky-500/30">
+                                    <Search size={26} className="text-sky-300" />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-bold tracking-tight text-white">校园搜寻中心：过程抽象与查找策略</h1>
+                                    <p className="mt-1 text-sm text-slate-400">Search HQ: Procedures, Linear Search, Binary Search, and Strategy Selection</p>
+                                </div>
                             </div>
-                            <div className="text-left">
-                                <h1 className="text-xl font-bold tracking-tight text-white underline decoration-blue-500 underline-offset-4">算法指挥官：查找与过程</h1>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] leading-none mt-1">APCSP: Algorithms & Procedures</p>
+                            <div className="grid gap-1 text-left xl:text-right">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Scene Objective</div>
+                                <div className="text-sm text-slate-300">{scenes[currentScene].objective}</div>
                             </div>
                         </div>
-                        <div className="flex gap-2">
-                            {scenes.map((_, i) => (
-                                <div key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i === currentScene ? 'bg-blue-500 w-12' : i < currentScene ? 'bg-slate-700 w-6' : 'bg-slate-800 w-6'}`} />
+                        <div className="mt-5 flex flex-wrap gap-2">
+                            {scenes.map((scene, index) => (
+                                <button
+                                    key={scene.title}
+                                    onClick={() => setCurrentScene(index)}
+                                    className={`rounded-full px-4 py-2 text-xs font-bold transition ${
+                                        index === currentScene
+                                            ? 'bg-sky-500/20 text-sky-200 ring-1 ring-sky-500/40'
+                                            : 'bg-slate-950/70 text-slate-400 ring-1 ring-slate-800 hover:text-white'
+                                    }`}
+                                >
+                                    {index + 1}. {scene.title}
+                                </button>
                             ))}
                         </div>
                     </header>
 
-                    <main className="flex-1 relative overflow-auto flex items-center justify-center p-4">
-                        <div className="w-full">
+                    <main className="flex-1 overflow-y-auto px-4 py-5 md:px-6 xl:px-8">
+                        <div className="mx-auto w-full max-w-[1500px]">
+                            <div className="mb-5 rounded-[28px] border border-slate-800 bg-slate-950/45 px-5 py-4">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Current Scene</div>
+                                <div className="mt-2 text-2xl font-bold text-white">{scenes[currentScene].subtitle}</div>
+                            </div>
                             {scenes[currentScene].component}
                         </div>
                     </main>
 
-                    <footer className="px-8 py-6 bg-slate-900 border-t border-slate-800 flex justify-between items-center z-10 shadow-2xl">
-                        <button 
-                            onClick={() => setCurrentScene(prev => Math.max(0, prev - 1))}
-                            disabled={currentScene === 0}
-                            className="group flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all disabled:opacity-20 text-white"
-                        >
-                            <ChevronLeft size={20} />
-                            <span className="font-bold">上一步</span>
-                        </button>
-                        
-                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest hidden md:block">
-                            SCENE {String(currentScene + 1)} OF {String(scenes.length)}
-                        </div>
+                    <footer className="glass-panel border-t border-slate-800/90 px-5 py-4 md:px-8">
+                        <div className="flex items-center justify-between gap-4">
+                            <button onClick={() => setCurrentScene((value) => Math.max(0, value - 1))} disabled={currentScene === 0} className="control-btn">
+                                <ChevronLeft size={18} />
+                                Previous
+                            </button>
 
-                        <button 
-                            onClick={() => setCurrentScene(prev => Math.min(scenes.length - 1, prev + 1))}
-                            disabled={currentScene === scenes.length - 1}
-                            className="group flex items-center gap-2 px-8 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/20 transition-all disabled:opacity-20 text-white"
-                        >
-                            <span className="font-bold">下一步</span>
-                            <ChevronRight size={20} />
-                        </button>
+                            <div className="hidden text-center md:block">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Progress</div>
+                                <div className="mt-2 flex gap-2">
+                                    {scenes.map((scene, index) => (
+                                        <div key={scene.title} className={`h-2 rounded-full transition-all ${index === currentScene ? 'w-12 bg-sky-400' : index < currentScene ? 'w-6 bg-slate-600' : 'w-6 bg-slate-800'}`} />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button onClick={() => setCurrentScene((value) => Math.min(scenes.length - 1, value + 1))} disabled={currentScene === scenes.length - 1} className="control-btn primary">
+                                Next
+                                <ChevronRight size={18} />
+                            </button>
+                        </div>
                     </footer>
                 </div>
             );
         };
 
-        const root = createRoot(document.getElementById('root'));
-        root.render(<App />);
+        createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
