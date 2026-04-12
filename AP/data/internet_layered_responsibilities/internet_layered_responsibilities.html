@@ -152,23 +152,112 @@
             </Card>
         );
 
-        const InternetVsWebScene = () => (
-            <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
-                <PlaceholderStage
-                    icon={<Globe2 size={30} className="text-sky-300" />}
-                    title="Internet vs Web"
-                    summary="先把 Internet 和 Web 分开。网页、邮件、视频、聊天都跑在 Internet 上，但 Web 只是其中一种服务。"
-                    tags={["Internet", "Web", "service", "network"]}
-                />
-                <TeachingPanel
-                    intro="先澄清学生最常见的概念混淆：Web 不是整个 Internet。"
-                    operate="点击不同服务卡片，强调它们共享同一条基础网络。"
-                    focus="学生要看到：Web 是服务，Internet 是底层基础设施。"
-                    line="Internet 是让设备互连的基础网络；Web 是跑在这张网络上的一种服务。"
-                    takeaway="Web uses the Internet, but is not the whole Internet."
-                />
-            </div>
-        );
+        const SERVICE_ITEMS = [
+            {
+                id: "web",
+                title: "Web",
+                icon: "🌐",
+                summary: "打开网页、加载网站内容",
+                note: "Web is one service on top of the Internet."
+            },
+            {
+                id: "chat",
+                title: "Chat",
+                icon: "💬",
+                summary: "发送和接收即时消息",
+                note: "聊天不是网页本身，但也依赖 Internet。"
+            },
+            {
+                id: "video",
+                title: "Video",
+                icon: "🎬",
+                summary: "播放和传输视频流",
+                note: "视频服务使用 Internet，但不等于 Web 的全部。"
+            },
+            {
+                id: "mail",
+                title: "Mail",
+                icon: "✉️",
+                summary: "发送和接收电子邮件",
+                note: "邮件是另一种网络服务。"
+            }
+        ];
+
+        const InternetVsWebScene = () => {
+            const [selectedService, setSelectedService] = useState("web");
+            const selected = SERVICE_ITEMS.find((item) => item.id === selectedService) ?? SERVICE_ITEMS[0];
+
+            return (
+                <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
+                    <Card className="min-h-[420px]">
+                        <Eyebrow>Scene 1 · Internet vs Web</Eyebrow>
+                        <div className="mb-6 flex items-start gap-4">
+                            <div className="rounded-[22px] bg-slate-950/80 p-4 ring-1 ring-slate-800">
+                                <Globe2 size={30} className="text-sky-300" />
+                            </div>
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">Web 不是整个 Internet</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
+                                    同一条 Internet 基础网络上，可以跑网页、聊天、视频和邮件。Web 只是其中一种服务。
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {SERVICE_ITEMS.map((item) => {
+                                const active = item.id === selectedService;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setSelectedService(item.id)}
+                                        className={`rounded-[24px] border p-5 text-left transition ${
+                                            active
+                                                ? "border-sky-400/35 bg-sky-400/10"
+                                                : "border-slate-800 bg-slate-950/72"
+                                        }`}
+                                    >
+                                        <div className="mb-3 text-3xl">{item.icon}</div>
+                                        <div className="text-lg font-bold text-white">{item.title}</div>
+                                        <div className="mt-2 text-sm text-slate-400">{item.summary}</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="mt-6 rounded-[24px] border border-slate-800 bg-slate-950/65 p-5">
+                            <div className="mb-4 text-sm font-bold text-slate-300">共享的 Internet 基础网络</div>
+                            <div className="rounded-[24px] border border-sky-400/15 bg-gradient-to-r from-sky-400/10 via-cyan-400/5 to-emerald-400/10 px-4 py-5">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    {SERVICE_ITEMS.map((item) => (
+                                        <div key={item.id} className={`rounded-full px-4 py-2 text-xs font-bold ring-1 ${
+                                            item.id === selectedService
+                                                ? "bg-sky-400/18 text-sky-100 ring-sky-400/30"
+                                                : "bg-slate-950/80 text-slate-400 ring-slate-800"
+                                        }`}>
+                                            {item.title}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-4 h-3 rounded-full bg-slate-950/80 ring-1 ring-slate-800">
+                                    <div className="h-full rounded-full bg-gradient-to-r from-sky-300 via-cyan-300 to-emerald-300" style={{ width: "100%" }} />
+                                </div>
+                                <div className="mt-3 text-sm text-slate-400">
+                                    你当前选中的是 <span className="font-bold text-white">{selected.title}</span>：
+                                    <span className="ml-2">{selected.note}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                    <TeachingPanel
+                        intro="先澄清学生最常见的概念混淆：Web 不是整个 Internet。"
+                        operate="点击不同服务卡片，强调它们共享同一条 Internet 基础网络。"
+                        focus="学生要看到：Web 是服务，Internet 是底层基础设施。"
+                        line="Internet 是让设备互连的基础网络；Web 是跑在这张网络上的一种服务。"
+                        takeaway="Web uses the Internet, but is not the whole Internet."
+                    />
+                </div>
+            );
+        };
 
         const WebRequestScene = () => (
             <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
