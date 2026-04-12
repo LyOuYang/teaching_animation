@@ -655,23 +655,163 @@
             );
         };
 
-        const RoutingScene = () => (
-            <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
-                <PlaceholderStage
-                    icon={<Route size={30} className="text-sky-300" />}
-                    title="Routing + Fault Tolerance"
-                    summary="当一条路径断开时，packet 可以选择其他路径继续前进，这就是 routing 和 fault tolerance 的课堂主画面。"
-                    tags={["routing", "fault tolerance", "redundancy", "path"]}
-                />
-                <TeachingPanel
-                    intro="这一幕负责打破‘消息必须走固定一条路’的误解。"
-                    operate="切断一条链路，让 packet 改道后继续到达。"
-                    focus="学生要看见：不同 packet 可以走不同路，冗余让系统更稳。"
-                    line="互联网的可靠性来自分布式路径和冗余，而不是一个中央控制者。"
-                    takeaway="Routing plus redundancy creates fault tolerance."
-                />
-            </div>
-        );
+        const ROUTE_ROWS = ["上方线路", "主线路", "下方线路"];
+
+        const RoutingScene = () => {
+            const [brokenRoute, setBrokenRoute] = useState("none");
+
+            const routedPackets = REQUEST_PACKET_BASE.map((packet) => {
+                if (brokenRoute === "none") {
+                    return { ...packet, originalRoute: packet.route, actualRoute: packet.route, rerouted: false };
+                }
+
+                if (packet.route !== brokenRoute) {
+                    return { ...packet, originalRoute: packet.route, actualRoute: packet.route, rerouted: false };
+                }
+
+                const fallbackRoute = packet.route === "主线路" ? "上方线路" : "主线路";
+                return {
+                    ...packet,
+                    originalRoute: packet.route,
+                    actualRoute: fallbackRoute,
+                    rerouted: true
+                };
+            });
+
+            return (
+                <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
+                    <Card>
+                        <Eyebrow>Scene 4 · Routing + Fault Tolerance</Eyebrow>
+                        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">断一条路，不等于断整个 Internet</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
+                                    packet 可以根据网络状态改道。冗余路径存在的意义，就是让局部故障不变成整体瘫痪。
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <button onClick={() => setBrokenRoute("none")} className={`rounded-full px-4 py-2 text-xs font-bold ${
+                                    brokenRoute === "none"
+                                        ? "bg-emerald-400/16 text-emerald-100 ring-1 ring-emerald-400/35"
+                                        : "bg-slate-950/70 text-slate-400 ring-1 ring-slate-800"
+                                }`}>
+                                    Repair All
+                                </button>
+                                {ROUTE_ROWS.map((routeName) => (
+                                    <button
+                                        key={routeName}
+                                        onClick={() => setBrokenRoute(routeName)}
+                                        className={`rounded-full px-4 py-2 text-xs font-bold ${
+                                            brokenRoute === routeName
+                                                ? "bg-rose-400/16 text-rose-100 ring-1 ring-rose-400/35"
+                                                : "bg-slate-950/70 text-slate-400 ring-1 ring-slate-800"
+                                        }`}
+                                    >
+                                        Break {routeName}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mb-5 grid gap-4 md:grid-cols-3">
+                            <div className="rounded-[22px] border border-slate-800 bg-slate-950/72 p-4">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Broken Route</div>
+                                <div className="mt-2 text-lg font-bold text-white">{brokenRoute === "none" ? "none" : brokenRoute}</div>
+                            </div>
+                            <div className="rounded-[22px] border border-slate-800 bg-slate-950/72 p-4">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Rerouted Packets</div>
+                                <div className="mt-2 text-lg font-bold text-white">{routedPackets.filter((packet) => packet.rerouted).length}</div>
+                            </div>
+                            <div className="rounded-[22px] border border-slate-800 bg-slate-950/72 p-4">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Outcome</div>
+                                <div className="mt-2 text-lg font-bold text-white">still delivered</div>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-5 xl:grid-cols-[0.58fr_0.42fr]">
+                            <div className="rounded-[26px] border border-slate-800 bg-slate-950/72 p-5">
+                                <div className="mb-4 text-lg font-bold text-white">Network Map</div>
+                                <div className="space-y-4">
+                                    {ROUTE_ROWS.map((routeName) => {
+                                        const broken = brokenRoute === routeName;
+                                        return (
+                                            <div key={routeName} className={`relative h-20 rounded-[22px] border px-4 py-3 ${
+                                                broken
+                                                    ? "border-rose-400/25 bg-rose-400/8"
+                                                    : "border-slate-800 bg-slate-950/80"
+                                            }`}>
+                                                <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.22em]">
+                                                    <span className={broken ? "text-rose-100" : "text-slate-500"}>{routeName}</span>
+                                                    <span className={broken ? "text-rose-200" : "text-slate-500"}>
+                                                        {broken ? "link down" : "healthy"}
+                                                    </span>
+                                                </div>
+                                                <div className="relative h-8">
+                                                    <div className={`absolute left-[8%] top-1/2 h-2 w-[78%] -translate-y-1/2 rounded-full ${
+                                                        broken ? "bg-rose-400/40" : "bg-slate-800"
+                                                    }`} />
+                                                    <div className="absolute left-[8%] top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-slate-700 bg-slate-950" />
+                                                    <div className="absolute left-[45%] top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-slate-700 bg-slate-950" />
+                                                    <div className="absolute left-[82%] top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-slate-700 bg-slate-950" />
+                                                    {routedPackets
+                                                        .filter((packet) => packet.actualRoute === routeName)
+                                                        .map((packet) => (
+                                                            <div
+                                                                key={packet.id}
+                                                                className={`absolute top-1/2 rounded-full px-3 py-1 text-xs font-bold transition-all duration-700 ${packet.tone}`}
+                                                                style={{ left: "62%", transform: "translateY(-50%)" }}
+                                                            >
+                                                                {packet.id}
+                                                            </div>
+                                                        ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="rounded-[26px] border border-slate-800 bg-slate-950/72 p-5">
+                                <div className="mb-4 text-lg font-bold text-white">Routing Decisions</div>
+                                <div className="space-y-3">
+                                    {routedPackets.map((packet) => (
+                                        <div key={packet.id} className="rounded-[20px] border border-slate-800 bg-slate-900/80 p-4">
+                                            <div className="mb-2 flex items-center justify-between">
+                                                <div className={`rounded-full px-3 py-1 text-xs font-bold ${packet.tone}`}>{packet.id}</div>
+                                                <div className={`text-xs font-bold uppercase tracking-[0.2em] ${
+                                                    packet.rerouted ? "text-amber-200" : "text-slate-500"
+                                                }`}>
+                                                    {packet.rerouted ? "rerouted" : "unchanged"}
+                                                </div>
+                                            </div>
+                                            <div className="text-sm text-slate-300">
+                                                {packet.originalRoute}
+                                                <span className="mx-2 text-slate-500">-></span>
+                                                <span className="font-bold text-white">{packet.actualRoute}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-5 rounded-[22px] border border-slate-800 bg-slate-900/80 p-4">
+                                    <div className="mb-2 text-sm font-bold text-white">Why redundancy matters</div>
+                                    <div className="text-sm leading-relaxed text-slate-300">
+                                        如果一条路径坏了，还有别的路径可以接手，这就是 Internet 的 <span className="mono text-sky-100">fault tolerance</span>。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                    <TeachingPanel
+                        intro="这一幕负责打破‘消息必须走固定一条路’的误解。"
+                        operate="切断一条链路，让 packet 改道后继续到达。"
+                        focus="学生要看见：不同 packet 可以走不同路，冗余让系统更稳。"
+                        line="互联网的可靠性来自分布式路径和冗余，而不是一个中央控制者。"
+                        takeaway="Routing plus redundancy creates fault tolerance."
+                    />
+                </div>
+            );
+        };
 
         const ScaleScene = () => (
             <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
