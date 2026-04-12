@@ -813,41 +813,205 @@
             );
         };
 
-        const ScaleScene = () => (
-            <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
-                <PlaceholderStage
-                    icon={<Gauge size={30} className="text-sky-300" />}
-                    title="Bandwidth + Scalability"
-                    summary="对比窄通道和宽通道的流量，再逐步增加设备数量，讲清 bandwidth 和 scalability。"
-                    tags={["bandwidth", "scalability", "traffic", "growth"]}
-                />
-                <TeachingPanel
-                    intro="这里不讲复杂公式，只讲系统为什么能继续承载更多数据和设备。"
-                    operate="对比数据通道宽窄，再增加节点数量。"
-                    focus="学生要区分：bandwidth 是流量能力，scalability 是扩展能力。"
-                    line="好的 Internet 设计不只要现在能工作，还要在流量和设备增长时继续工作。"
-                    takeaway="Bandwidth affects throughput. Scalability affects growth."
-                />
-            </div>
-        );
+        const ScaleScene = () => {
+            const [bandwidthMode, setBandwidthMode] = useState("medium");
+            const [deviceCount, setDeviceCount] = useState(8);
 
-        const LayerSummaryScene = () => (
-            <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
-                <PlaceholderStage
-                    icon={<Layers3 size={30} className="text-sky-300" />}
-                    title="简化分层"
-                    summary="最后把前面看到的职责卡翻成简化层名：Application、Transport、Internet、Link / Physical。"
-                    tags={["Application", "Transport", "Internet", "Link / Physical"]}
-                />
-                <TeachingPanel
-                    intro="层图只在最后出现，用来整理前面的职责直觉。"
-                    operate="先显示职责卡，再翻面显示层名。"
-                    focus="学生要理解：分层是职责边界，不是背诵任务。"
-                    line="分层帮助系统把复杂任务拆开，让局部可以替换、扩展和协作。"
-                    takeaway="Layering is about responsibilities, not memorization."
-                />
-            </div>
-        );
+            const bandwidthLevels = {
+                narrow: { label: "Narrow", width: "28%", note: "一次能流过的数据较少" },
+                medium: { label: "Medium", width: "56%", note: "普通课堂演示流量" },
+                wide: { label: "Wide", width: "88%", note: "一次能流过的数据更多" }
+            };
+
+            const bandwidth = bandwidthLevels[bandwidthMode];
+            const queues = Array.from({ length: deviceCount }, (_, index) => index);
+
+            return (
+                <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
+                    <Card>
+                        <Eyebrow>Scene 5 · Bandwidth + Scalability</Eyebrow>
+                        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">网络不只要能工作，还要能扩展</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
+                                    `bandwidth` 关注一段时间内能流过多少数据，`scalability` 关注设备和流量增加后系统还能不能继续工作。
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                {Object.keys(bandwidthLevels).map((key) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setBandwidthMode(key)}
+                                        className={`rounded-full px-4 py-2 text-xs font-bold ${
+                                            bandwidthMode === key
+                                                ? "bg-sky-400/16 text-sky-100 ring-1 ring-sky-400/35"
+                                                : "bg-slate-950/70 text-slate-400 ring-1 ring-slate-800"
+                                        }`}
+                                    >
+                                        {bandwidthLevels[key].label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mb-6 rounded-[24px] border border-slate-800 bg-slate-950/72 p-5">
+                            <div className="mb-3 flex items-center justify-between">
+                                <div className="text-sm font-bold text-slate-300">Device Count</div>
+                                <div className="mono text-sm text-sky-100">{deviceCount}</div>
+                            </div>
+                            <input
+                                type="range"
+                                min="4"
+                                max="16"
+                                step="4"
+                                value={deviceCount}
+                                onChange={(event) => setDeviceCount(Number(event.target.value))}
+                                className="w-full"
+                            />
+                        </div>
+
+                        <div className="grid gap-5 xl:grid-cols-[0.54fr_0.46fr]">
+                            <div className="rounded-[26px] border border-slate-800 bg-slate-950/72 p-5">
+                                <div className="mb-4 text-lg font-bold text-white">Bandwidth Lane</div>
+                                <div className="rounded-[22px] border border-slate-800 bg-slate-900/80 p-4">
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <div className="text-sm font-bold text-slate-300">{bandwidth.label}</div>
+                                        <div className="mono text-xs text-slate-500">bandwidth</div>
+                                    </div>
+                                    <div className="h-6 rounded-full bg-slate-950/90 ring-1 ring-slate-800">
+                                        <div
+                                            className="h-full rounded-full bg-gradient-to-r from-sky-300 via-cyan-300 to-emerald-300 transition-all duration-500"
+                                            style={{ width: bandwidth.width }}
+                                        />
+                                    </div>
+                                    <div className="mt-3 text-sm text-slate-400">{bandwidth.note}</div>
+                                </div>
+
+                                <div className="mt-5 rounded-[22px] border border-slate-800 bg-slate-900/80 p-4">
+                                    <div className="mb-2 text-sm font-bold text-white">Traffic Snapshot</div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {queues.map((item) => (
+                                            <div
+                                                key={item}
+                                                className={`h-10 rounded-2xl ${
+                                                    item < Math.round(parseInt(bandwidth.width, 10) / 8)
+                                                        ? "bg-sky-300/20 ring-1 ring-sky-300/25"
+                                                        : "bg-slate-950/80 ring-1 ring-slate-800"
+                                                }`}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-[26px] border border-slate-800 bg-slate-950/72 p-5">
+                                <div className="mb-4 text-lg font-bold text-white">Scalability Check</div>
+                                <div className="space-y-3">
+                                    <div className="rounded-[20px] border border-slate-800 bg-slate-900/80 p-4">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Current Devices</div>
+                                        <div className="mt-2 text-2xl font-bold text-white">{deviceCount}</div>
+                                    </div>
+                                    <div className="rounded-[20px] border border-slate-800 bg-slate-900/80 p-4">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">System Reading</div>
+                                        <div className="mt-2 text-sm leading-relaxed text-slate-300">
+                                            {deviceCount <= 8
+                                                ? "现有流量和设备仍容易承载。"
+                                                : deviceCount <= 12
+                                                    ? "系统开始需要更高 bandwidth 或更多路径。"
+                                                    : "设备继续增长时，scalability 变得关键。"}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-[20px] border border-emerald-300/20 bg-emerald-300/8 p-4">
+                                        <div className="text-sm font-bold text-white">Why the Internet scales</div>
+                                        <div className="mt-2 text-sm leading-relaxed text-slate-300">
+                                            开放 protocol、packet switching 和多路径 routing 让更多设备加入时，系统不必整体重写。
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                    <TeachingPanel
+                        intro="这里不讲复杂公式，只讲系统为什么能继续承载更多数据和设备。"
+                        operate="切换 bandwidth，再拖动 device count，观察课堂解释如何变化。"
+                        focus="学生要区分：bandwidth 是流量能力，scalability 是扩展能力。"
+                        line="好的 Internet 设计不只要现在能工作，还要在流量和设备增长时继续工作。"
+                        takeaway="Bandwidth affects throughput. Scalability affects growth."
+                    />
+                </div>
+            );
+        };
+
+        const LAYER_CARDS = [
+            { duty: "我要做什么", layer: "Application" },
+            { duty: "如何按规则传输", layer: "Transport" },
+            { duty: "数据往哪走", layer: "Internet" },
+            { duty: "怎样在具体网络上传送", layer: "Link / Physical" }
+        ];
+
+        const LayerSummaryScene = () => {
+            const [showLayerNames, setShowLayerNames] = useState(false);
+
+            return (
+                <div className="scene-enter grid gap-6 xl:grid-cols-[1.16fr_0.84fr]">
+                    <Card>
+                        <Eyebrow>Scene 6 · 简化分层</Eyebrow>
+                        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">先看职责，再翻成层名</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
+                                    这一幕只做收束：前面看到的是职责边界，现在才把它们整理成简化层图。
+                                </p>
+                            </div>
+                            <button onClick={() => setShowLayerNames((value) => !value)} className="control-btn primary">
+                                {showLayerNames ? "Show Duties" : "Reveal Layers"}
+                            </button>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            {LAYER_CARDS.map((item) => (
+                                <div key={item.duty} className="rounded-[24px] border border-slate-800 bg-slate-950/72 p-5">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                                        {showLayerNames ? "Layer Name" : "Responsibility"}
+                                    </div>
+                                    <div className="mt-3 text-lg font-bold text-white">
+                                        {showLayerNames ? item.layer : item.duty}
+                                    </div>
+                                    <div className="mt-2 text-sm text-slate-400">
+                                        {showLayerNames ? `对应职责：${item.duty}` : "层名稍后再揭示"}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-6 rounded-[24px] border border-slate-800 bg-slate-950/72 p-5">
+                            <div className="mb-4 text-lg font-bold text-white">Transfer Check</div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div className="rounded-[20px] border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-300">
+                                    如果网页打不开，可能是哪一层的问题？
+                                </div>
+                                <div className="rounded-[20px] border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-300">
+                                    如果某条路径断了，为什么系统仍可能继续工作？
+                                </div>
+                                <div className="rounded-[20px] border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-300">
+                                    如果只改上层应用，为什么不一定要重写底层网络？
+                                </div>
+                                <div className="rounded-[20px] border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-300">
+                                    如果更多设备接入 Internet，为什么系统仍能扩展？
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                    <TeachingPanel
+                        intro="层图只在最后出现，用来整理前面的职责直觉。"
+                        operate="先显示职责卡，再点 Reveal Layers 把它们翻成层名。"
+                        focus="学生要理解：分层是职责边界，不是背诵任务。"
+                        line="分层帮助系统把复杂任务拆开，让局部可以替换、扩展和协作。"
+                        takeaway="Layering is about responsibilities, not memorization."
+                    />
+                </div>
+            );
+        };
 
         const scenes = [
             {
