@@ -17,7 +17,8 @@ assert.match(lessonHtml, /打开一个网页/, "Lesson should include the webpag
 assert.match(lessonHtml, /packet/i, "Lesson should mention packet");
 assert.match(lessonHtml, /routing/i, "Lesson should mention routing");
 assert.match(lessonHtml, /bandwidth|scalability/i, "Lesson should mention bandwidth or scalability");
-assert.match(lessonHtml, /教师讲稿|data-testid="teaching-panel"/, "Lesson should include visible teaching guidance");
+assert.match(lessonHtml, /整体数据传递总览|真实数据传递总览/, "Lesson should include an end-to-end transmission overview scene");
+assert.doesNotMatch(lessonHtml, /教师讲稿|data-testid="teaching-panel"/, "Student lesson page should not include visible teacher-script panels");
 
 const homepage = readFileSync("index.html", "utf8");
 assert.match(
